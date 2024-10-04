@@ -1,0 +1,125 @@
+ISO-3166-2;code_insee;region_insee;Nom;Type;Parent;Extension;Ancien;Code langue;nom_insee
+FR-01;1;84;Ain;departement metropolitain;FR-ARA;01;;fr;AUVERGNE RHONE ALPES
+FR-02;2;32;Aisne;departement metropolitain;FR-HDF;02;;fr;HAUTS DE FRANCE
+FR-03;3;84;Allier;departement metropolitain;FR-ARA;03;;fr;AUVERGNE RHONE ALPES
+FR-06;6;93;Alpes-Maritimes;departement metropolitain;FR-PAC;06;;fr;PROVENCE ALPES COTE D AZUR
+FR-04;4;93;Alpes-de-Haute-Provence;departement metropolitain;FR-PAC;04;;fr;PROVENCE ALPES COTE D AZUR
+FR-6AE;;44;Alsace;collectivite europeenne;FR-GES;6AE;;fr;GRAND EST
+FR-08;8;44;Ardennes;departement metropolitain;FR-GES;08;;fr;GRAND EST
+FR-07;7;84;Ardèche;departement metropolitain;FR-ARA;07;;fr;AUVERGNE RHONE ALPES
+FR-09;9;76;Ariège;departement metropolitain;FR-OCC;09;;fr;OCCITANIE
+FR-10;10;44;Aube;departement metropolitain;FR-GES;10;;fr;GRAND EST
+FR-11;11;76;Aude;departement metropolitain;FR-OCC;11;;fr;OCCITANIE
+FR-ARA;;84;Auvergne-Rhône-Alpes;region metropolitaine;;ARA;;fr;
+FR-12;12;76;Aveyron;departement metropolitain;FR-OCC;12;;fr;OCCITANIE
+FR-67;67;44;Bas-Rhin;departement metropolitain;FR-6AE;67;;fr;GRAND EST
+FR-13;13;93;Bouches-du-Rhône;departement metropolitain;FR-PAC;13;;fr;PROVENCE ALPES COTE D AZUR
+FR-BFC;;27;Bourgogne-Franche-Comté;region metropolitaine;;BFC;;fr;
+FR-BRE;;53;Bretagne;region metropolitaine;;BRE;;fr;
+FR-14;14;28;Calvados;departement metropolitain;FR-NOR;14;;fr;NORMANDIE
+FR-15;15;84;Cantal;departement metropolitain;FR-ARA;15;;fr;AUVERGNE RHONE ALPES
+FR-CVL;;24;Centre-Val de Loire;region metropolitaine;;CVL;;fr;
+FR-16;16;75;Charente;departement metropolitain;FR-NAQ;16;;fr;NOUVELLE AQUITAINE
+FR-17;17;75;Charente-Maritime;departement metropolitain;FR-NAQ;17;;fr;NOUVELLE AQUITAINE
+FR-18;18;24;Cher;departement metropolitain;FR-CVL;18;;fr;CENTRE VAL DE LOIRE
+FR-CP;989;;Clipperton;dependance;;CP;;fr;
+FR-19;19;75;Corrèze;departement metropolitain;FR-NAQ;19;;fr;NOUVELLE AQUITAINE
+FR-20R;;94;Corse;collectivite metropolitaine a statut particulier;;20R;FR-COR;fr;
+FR-2A;2A;94;Corse-du-Sud;departement metropolitain;FR-20R;2A;;fr;CORSE
+FR-23;23;75;Creuse;departement metropolitain;FR-NAQ;23;;fr;NOUVELLE AQUITAINE
+FR-21;21;27;Côte-d'Or;departement metropolitain;FR-BFC;21;;fr;BOURGOGNE FRANCHE COMTE
+FR-22;22;53;Côtes-d'Armor;departement metropolitain;FR-BRE;22;;fr;BRETAGNE
+FR-79;79;75;Deux-Sèvres;departement metropolitain;FR-NAQ;79;;fr;NOUVELLE AQUITAINE
+FR-24;24;75;Dordogne;departement metropolitain;FR-NAQ;24;;fr;NOUVELLE AQUITAINE
+FR-25;25;27;Doubs;departement metropolitain;FR-BFC;25;;fr;BOURGOGNE FRANCHE COMTE
+FR-26;26;84;Drôme;departement metropolitain;FR-ARA;26;;fr;AUVERGNE RHONE ALPES
+FR-91;91;11;Essonne;departement metropolitain;FR-IDF;91;;fr;ILE DE FRANCE
+FR-27;27;28;Eure;departement metropolitain;FR-NOR;27;;fr;NORMANDIE
+FR-28;28;24;Eure-et-Loir;departement metropolitain;FR-CVL;28;;fr;CENTRE VAL DE LOIRE
+FR-29;29;53;Finistère;departement metropolitain;FR-BRE;29;;fr;BRETAGNE
+FR-30;30;76;Gard;departement metropolitain;FR-OCC;30;;fr;OCCITANIE
+FR-32;32;76;Gers;departement metropolitain;FR-OCC;32;;fr;OCCITANIE
+FR-33;33;75;Gironde;departement metropolitain;FR-NAQ;33;;fr;NOUVELLE AQUITAINE
+FR-GES;;44;Grand-Est;region metropolitaine;;GES;;fr;
+FR-971;971;1;Guadeloupe;collectivite departementale d'outre-mer;;971; FR-GP;fr;
+FR-973;973;3;Guyane;collectivite territoriale unique d'outre-mer;;973;FR-GF;fr;
+FR-68;68;44;Haut-Rhin;departement metropolitain;FR-6AE;68;;fr;GRAND EST
+FR-2B;2B;94;Haute-Corse;departement metropolitain;FR-20R;2B;;fr;CORSE
+FR-31;31;76;Haute-Garonne;departement metropolitain;FR-OCC;31;;fr;OCCITANIE
+FR-43;43;84;Haute-Loire;departement metropolitain;FR-ARA;43;;fr;AUVERGNE RHONE ALPES
+FR-52;52;44;Haute-Marne;departement metropolitain;FR-GES;52;;fr;GRAND EST
+FR-74;74;84;Haute-Savoie;departement metropolitain;FR-ARA;74;;fr;AUVERGNE RHONE ALPES
+FR-70;70;27;Haute-Saône;departement metropolitain;FR-BFC;70;;fr;BOURGOGNE FRANCHE COMTE
+FR-87;87;75;Haute-Vienne;departement metropolitain;FR-NAQ;87;;fr;NOUVELLE AQUITAINE
+FR-05;5;93;Hautes-Alpes;departement metropolitain;FR-PAC;05;;fr;PROVENCE ALPES COTE D AZUR
+FR-65;65;76;Hautes-Pyrénées;departement metropolitain;FR-OCC;65;;fr;OCCITANIE
+FR-HDF;;32;Hauts-de-France;region metropolitaine;;HDF;;fr;
+FR-92;92;11;Hauts-de-Seine;departement metropolitain;FR-IDF;92;;fr;ILE DE FRANCE
+FR-34;34;76;Hérault;departement metropolitain;FR-OCC;34;;fr;OCCITANIE
+FR-35;35;53;Ille-et-Vilaine;departement metropolitain;FR-BRE;35;;fr;BRETAGNE
+FR-36;36;24;Indre;departement metropolitain;FR-CVL;36;;fr;CENTRE VAL DE LOIRE
+FR-37;37;24;Indre-et-Loire;departement metropolitain;FR-CVL;37;;fr;CENTRE VAL DE LOIRE
+FR-38;38;84;Isère;departement metropolitain;FR-ARA;38;;fr;AUVERGNE RHONE ALPES
+FR-39;39;27;Jura;departement metropolitain;FR-BFC;39;;fr;BOURGOGNE FRANCHE COMTE
+FR-974;974;4;La Réunion;collectivite departementale d'outre-mer;;974; FR-RE;fr;
+FR-40;40;75;Landes;departement metropolitain;FR-NAQ;40;;fr;NOUVELLE AQUITAINE
+FR-41;41;24;Loir-et-Cher;departement metropolitain;FR-CVL;41;;fr;CENTRE VAL DE LOIRE
+FR-42;42;84;Loire;departement metropolitain;FR-ARA;42;;fr;AUVERGNE RHONE ALPES
+FR-44;44;52;Loire-Atlantique;departement metropolitain;FR-PDL;44;;fr;PAYS DE LA LOIRE
+FR-45;45;24;Loiret;departement metropolitain;FR-CVL;45;;fr;CENTRE VAL DE LOIRE
+FR-46;46;76;Lot;departement metropolitain;FR-OCC;46;;fr;OCCITANIE
+FR-47;47;75;Lot-et-Garonne;departement metropolitain;FR-NAQ;47;;fr;NOUVELLE AQUITAINE
+FR-48;48;76;Lozère;departement metropolitain;FR-OCC;48;;fr;OCCITANIE
+FR-49;49;52;Maine-et-Loire;departement metropolitain;FR-PDL;49;;fr;PAYS DE LA LOIRE
+FR-50;50;28;Manche;departement metropolitain;FR-NOR;50;;fr;NORMANDIE
+FR-51;51;44;Marne;departement metropolitain;FR-GES;51;;fr;GRAND EST
+FR-972;972;2;Martinique;collectivite territoriale unique d'outre-mer;;972; FR-MQ;fr;
+FR-53;53;52;Mayenne;departement metropolitain;FR-PDL;53;;fr;PAYS DE LA LOIRE
+FR-976;976;6;Mayotte;collectivite departementale d'outre-mer;;976; FR-YT;fr;
+FR-54;54;44;Meurthe-et-Moselle;departement metropolitain;FR-GES;54;;fr;GRAND EST
+FR-55;55;44;Meuse;departement metropolitain;FR-GES;55;;fr;GRAND EST
+FR-56;56;53;Morbihan;departement metropolitain;FR-BRE;56;;fr;BRETAGNE
+FR-57;57;44;Moselle;departement metropolitain;FR-GES;57;;fr;GRAND EST
+FR-69M;;84;Métropole de Lyon;collectivite metropolitaine a statut particulier;FR-ARA;69M;;fr;AUVERGNE RHONE ALPES
+FR-58;58;27;Nièvre;departement metropolitain;FR-BFC;58;;fr;BOURGOGNE FRANCHE COMTE
+FR-59;59;32;Nord;departement metropolitain;FR-HDF;59;;fr;HAUTS DE FRANCE
+FR-NOR;;28;Normandie;region metropolitaine;;NOR;;fr;
+FR-NAQ;;75;Nouvelle-Aquitaine;region metropolitaine;;NAQ;;fr;
+FR-NC;988;;Nouvelle-Calédonie;collectivite d’outre-mer a statut particulier;;NC;;fr;
+FR-OCC;;76;Occitanie;region metropolitaine;;OCC;;fr;
+FR-60;60;32;Oise;departement metropolitain;FR-HDF;60;;fr;HAUTS DE FRANCE
+FR-61;61;28;Orne;departement metropolitain;FR-NOR;61;;fr;NORMANDIE
+FR-75C;;11;Paris;collectivite metropolitaine a statut particulier;FR-IDF;75C;;fr;ILE DE FRANCE
+FR-62;62;32;Pas-de-Calais;departement metropolitain;FR-HDF;62;;fr;HAUTS DE FRANCE
+FR-PDL;;52;Pays-de-la-Loire;region metropolitaine;;PDL;;fr;
+FR-PF;987;;Polynésie française;collectivite d'outre-mer;;PF;;fr;
+FR-PAC;;93;Provence-Alpes-Côte-d’Azur;region metropolitaine;;PAC;;fr;
+FR-63;63;84;Puy-de-Dôme;departement metropolitain;FR-ARA;63;;fr;AUVERGNE RHONE ALPES
+FR-64;64;75;Pyrénées-Atlantiques;departement metropolitain;FR-NAQ;64;;fr;NOUVELLE AQUITAINE
+FR-66;66;76;Pyrénées-Orientales;departement metropolitain;FR-OCC;66;;fr;OCCITANIE
+FR-69;69;84;Rhône;departement metropolitain;FR-ARA;69;;fr;AUVERGNE RHONE ALPES
+FR-BL;977;;Saint-Barthélemy;collectivite d'outre-mer;;BL;;fr;
+FR-MF;978;;Saint-Martin;collectivite d'outre-mer;;MF;;fr;
+FR-PM;975;;Saint-Pierre-et-Miquelon;collectivite d'outre-mer;;PM;;fr;
+FR-72;72;52;Sarthe;departement metropolitain;FR-PDL;72;;fr;PAYS DE LA LOIRE
+FR-73;73;84;Savoie;departement metropolitain;FR-ARA;73;;fr;AUVERGNE RHONE ALPES
+FR-71;71;27;Saône-et-Loire;departement metropolitain;FR-BFC;71;;fr;BOURGOGNE FRANCHE COMTE
+FR-76;76;28;Seine-Maritime;departement metropolitain;FR-NOR;76;;fr;NORMANDIE
+FR-93;93;11;Seine-Saint-Denis;departement metropolitain;FR-IDF;93;;fr;ILE DE FRANCE
+FR-77;77;11;Seine-et-Marne;departement metropolitain;FR-IDF;77;;fr;ILE DE FRANCE
+FR-80;80;32;Somme;departement metropolitain;FR-HDF;80;;fr;HAUTS DE FRANCE
+FR-81;81;76;Tarn;departement metropolitain;FR-OCC;81;;fr;OCCITANIE
+FR-82;82;76;Tarn-et-Garonne;departement metropolitain;FR-OCC;82;;fr;OCCITANIE
+FR-TF;984;;Terres australes françaises;territoire d'outre-mer;;TF;;fr;
+FR-90;90;27;Territoire de Belfort;departement metropolitain;FR-BFC;90;;fr;BOURGOGNE FRANCHE COMTE
+FR-95;95;11;Val-d'Oise;departement metropolitain;FR-IDF;95;;fr;ILE DE FRANCE
+FR-94;94;11;Val-de-Marne;departement metropolitain;FR-IDF;94;;fr;ILE DE FRANCE
+FR-83;83;93;Var;departement metropolitain;FR-PAC;83;;fr;PROVENCE ALPES COTE D AZUR
+FR-84;84;93;Vaucluse;departement metropolitain;FR-PAC;84;;fr;PROVENCE ALPES COTE D AZUR
+FR-85;85;52;Vendée;departement metropolitain;FR-PDL;85;;fr;PAYS DE LA LOIRE
+FR-86;86;75;Vienne;departement metropolitain;FR-NAQ;86;;fr;NOUVELLE AQUITAINE
+FR-88;88;44;Vosges;departement metropolitain;FR-GES;88;;fr;GRAND EST
+FR-WF;986;;Wallis-et-Futuna;collectivite d'outre-mer;;WF;;fr;
+FR-89;89;27;Yonne;departement metropolitain;FR-BFC;89;;fr;BOURGOGNE FRANCHE COMTE
+FR-78;78;11;Yvelines;departement metropolitain;FR-IDF;78;;fr;ILE DE FRANCE
+FR-IDF;;11;Île-de-France;region metropolitaine;;IDF;;fr;
