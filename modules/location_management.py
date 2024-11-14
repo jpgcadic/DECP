@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[1]:
+# In[ ]:
 
 
 import pandas as pd
@@ -41,7 +41,7 @@ from pynsee import get_file_list, download_file
 import eurostat 
 
 
-# In[5]:
+# In[ ]:
 
 
 if '__file__' not in globals():
@@ -52,7 +52,7 @@ from modules.location_loaders import *
 from modules.location_constructors import getCity, getRegionFromDepartement, getArrondissement, getCanton, getDepartement, getRegion, getCountry
 
 
-# In[3]:
+# In[ ]:
 
 
 def getDeliveryLocation(codes: dict) -> tuple[dict, (LocationNode | Cedex | City | Region | Country)]:
@@ -94,7 +94,7 @@ def getDeliveryLocation(codes: dict) -> tuple[dict, (LocationNode | Cedex | City
     return codes, locationNode
 
 
-# In[4]:
+# In[ ]:
 
 
 def getLocationCode(codes:dict) -> dict:
@@ -339,7 +339,6 @@ def isCommuneCodeFormat(codes: dict) -> bool:
     """
     ret = False
     code = codes['code']
-    
     if len(code) == 5:
         if code[0:2] in ['2A', '2B']: # Corse
             if code[2:].isnumeric():

@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[11]:
+# In[3]:
 
 
 import pandas as pd
@@ -42,7 +42,7 @@ import eurostat
 
 
 
-# In[2]:
+# In[4]:
 
 
 if '__file__' not in globals():
@@ -60,13 +60,7 @@ from modules.location_constructors import getCity, getRegionFromDepartement
 import json
 
 
-# In[10]:
-
-
-parser.isoparse('2023-12-18').year
-
-
-# In[3]:
+# In[9]:
 
 
 def addContract(contract: pd.Series):
@@ -88,6 +82,7 @@ def addContract(contract: pd.Series):
                            axis= 1)
     # création des titulaires
     titulaires = titulaires[titulaires.SIRET.notna()]   # on ne conserve que les valeurs renseignées
+
     titulaires = titulaires.apply(addEnterprise, axis= 1)
 
     # création des noeuds sièges si distincts des titulaires
@@ -97,7 +92,7 @@ def addContract(contract: pd.Series):
     # création des liens avec les sièges
     sieges.apply(lambda x: x.NODE.siege.connect(x.NODE_SIEGE), axis= 1)
     
-    contractKey = {'year': parser.isoparse(contract.datePublicationDonnees).year,
+    contractKey = {'year': parser.isoparse(contract.dateNotification).year,
                    'id': contract.id,
                    'titulaire': contract.titulaire_id_1,
                    'montant': contract.montant,
@@ -109,6 +104,9 @@ def addContract(contract: pd.Series):
         contractNode = Contract(modelVersion = modelVersion,
                                 key = contractKey,
                                 idContract = contract.id,
+                                year  = str(parser.isoparse(contract.dateNotification).year),
+                                month = str(parser.isoparse(contract.dateNotification).month),
+                                day   = str(parser.isoparse(contract.dateNotification).day),
                                 objet = contract.objet,
                                 procedure = contract.procedure,
                                 montant = contract.montant
@@ -117,20 +115,23 @@ def addContract(contract: pd.Series):
     # création du noeud Partnership si plusieurs titulaires
     if titulaires.SIRET[titulaires.SIRET.notna()].count() > 1:
         try:
-            groupement = Partnership.nodes.get(idContract = contract.id)
+            groupement = Partnership.nodes.get(idContract = contractKey)
         except DoesNotExist:
             groupement = Partnership(modelVersion = modelVersion,
-                                     idContract= contract.id,
-                                     typeGroupementOperateurs= contract.typeGroupementOperateurs).save()
-            # création des relations cocontractantes
-            titulaires.apply(lambda x: x.NODE.coContractor.connect(groupement), axis=1)
+                                     idContract= contractKey,
+                                     typeGroupementOperateurs= contract.typeGroupementOperateurs,
+                                     year  = str(parser.isoparse(contract.dateNotification).year),
+                                     month = str(parser.isoparse(contract.dateNotification).month),
+                                     day   = str(parser.isoparse(contract.dateNotification).day)).save()
+
+        # création des relations cocontractantes
+        titulaires.apply(lambda x: x.NODE.coContractor.connect(groupement), axis=1)
     
-            # création du lien avec le contrat
-            groupement.publicContract.connect(contractNode)
+        # création du lien avec le contrat
+        groupement.publicContract.connect(contractNode)
     else:
         # 1 seul titulaire
-        titulaires[titulaires.SIRET.notna()].apply(lambda x: x.NODE.publicContract.connect(contractNode),
-                                                   axis= 1)
+        titulaires[titulaires.SIRET.notna()].apply(lambda x: x.NODE.publicContract.connect(contractNode), axis= 1)
 
     # mise à jour du noeud contrat
     colsContractOptions = ['nature', 'codeCPV', 'procedure','dureeMois', 'id', 'formePrix', 'dateNotification', 'objet',
@@ -180,9 +181,6 @@ def addContract(contract: pd.Series):
             case _: pass
 
     contractNode.save()
-
-    # création du lien titulaire -> contrat
-    
 
     # création du noeud acheteur
     siretBuyer = str(contract['acheteur.id'])[0:14]
@@ -242,6 +240,7 @@ def addContract(contract: pd.Series):
     
     # création de l'entité siège de l'acheteur 
     siegeBuyer = entBuyer[entBuyer.SIRET_SIEGE.notna()]
+    siegeBuyer['TYPE_ID'] = 'SIRET'
     siegeBuyer['SIRET'] = siegeBuyer['SIRET_SIEGE']
     siegeBuyer = siegeBuyer.apply(addEnterprise, axis= 1)
 
@@ -267,7 +266,7 @@ def addContract(contract: pd.Series):
     return
 
 
-# In[4]:
+# In[8]:
 
 
 def addEnterprise(titulaire: pd.Series) -> pd.Series:
@@ -278,7 +277,8 @@ def addEnterprise(titulaire: pd.Series) -> pd.Series:
     retour : Series titulaire, avec noeud existant ou créé renseigné dans la colonne 'NODE'.
     """
 
-    siret = str(int(titulaire.SIRET))
+    siret = titulaire.SIRET
+
     # vérifier si le site existe déjà
     try:
         enterprise = Enterprise.nodes.get(titulaireId = siret)
@@ -392,8 +392,7 @@ def addEnterprise(titulaire: pd.Series) -> pd.Series:
                                     titulaireSite =  siret[9:14],
                                     titulaireDenominationSociale = 'not known in SIRENE',
                                     titulaireTypeIdentifiant = titulaire.TYPE_ID,
-                                    isSiege = True)
-
+                                    isSiege = True).save()
 
     if titulaire.isna().SIRET_SIEGE:
         # le numéro de SIRET du siège n'est pas indiqué dans le dataframe en entrée.

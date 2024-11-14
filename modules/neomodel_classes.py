@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[2]:
+# In[1]:
 
 
 from neo4j import GraphDatabase
@@ -17,10 +17,10 @@ from neomodel.integration.numpy import to_ndarray
 
 
 
-# In[3]:
+# In[2]:
 
 
-modelVersion = '0.0.9'
+modelVersion = '0.1.0'
 
 class LocationRel(StructuredRel):
     deliveryLocationTypeId = StringProperty()
@@ -93,6 +93,9 @@ class Partnership(StructuredNode):
     modelVersion             = StringProperty(required=True)
     idContract               = StringProperty(unique_index=True, required=True)
     typeGroupementOperateurs = StringProperty(unique_index=False, required=True)
+    year                     = StringProperty(unique_index=False, required=True)
+    month                    = StringProperty(unique_index=False, required=True)
+    day                      = StringProperty(unique_index=False, required=True)
     
     publicContract           = RelationshipTo('Contract', 'HAS_CONTRACT')
 
@@ -101,6 +104,9 @@ class Contract(StructuredNode):
     modelVersion                      = StringProperty(required=True)
     key                               = JSONProperty(unique_index=True, required=True)
     idContract                        = StringProperty(unique_index=False, required=True)
+    year                              = StringProperty(unique_index=False, required=True)
+    month                             = StringProperty(unique_index=False, required=True)
+    day                               = StringProperty(unique_index=False, required=True)
     procedure                         = StringProperty(unique_index=False, required=True)
     montant                           = FloatProperty(unique_index=False, required=True)
     nature                            = StringProperty(unique_index=False, required=False)
