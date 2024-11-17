@@ -92,7 +92,7 @@ def addContract(contract: pd.Series):
     # création des liens avec les sièges
     sieges.apply(lambda x: x.NODE.siege.connect(x.NODE_SIEGE), axis= 1)
     
-    contractKey = {'year': parser.isoparse(contract.dateNotification).year,
+    contractKey = {'year': parser.parse(contract.dateNotification, fuzzy= True).year,
                    'id': contract.id,
                    'titulaire': contract.titulaire_id_1,
                    'montant': contract.montant,
@@ -104,9 +104,9 @@ def addContract(contract: pd.Series):
         contractNode = Contract(modelVersion = modelVersion,
                                 key = contractKey,
                                 idContract = contract.id,
-                                year  = str(parser.isoparse(contract.dateNotification).year),
-                                month = str(parser.isoparse(contract.dateNotification).month),
-                                day   = str(parser.isoparse(contract.dateNotification).day),
+                                year  = str(parser.parse(contract.dateNotification, fuzzy= True).year),
+                                month = str(parser.parse(contract.dateNotification, fuzzy= True).month),
+                                day   = str(parser.parse(contract.dateNotification, fuzzy= True).day),
                                 objet = contract.objet,
                                 procedure = contract.procedure,
                                 montant = contract.montant
@@ -120,9 +120,9 @@ def addContract(contract: pd.Series):
             groupement = Partnership(modelVersion = modelVersion,
                                      idContract= contractKey,
                                      typeGroupementOperateurs= contract.typeGroupementOperateurs,
-                                     year  = str(parser.isoparse(contract.dateNotification).year),
-                                     month = str(parser.isoparse(contract.dateNotification).month),
-                                     day   = str(parser.isoparse(contract.dateNotification).day)).save()
+                                     year  = str(parser.parse(contract.dateNotification, fuzzy= True).year),
+                                     month = str(parser.parse(contract.dateNotification, fuzzy= True).month),
+                                     day   = str(parser.parse(contract.dateNotification, fuzzy= True).day)).save()
 
         # création des relations cocontractantes
         titulaires.apply(lambda x: x.NODE.coContractor.connect(groupement), axis=1)
@@ -174,10 +174,10 @@ def addContract(contract: pd.Series):
     cols = datesContract[datesContract.notna()].index
     for col in cols:
         match col:
-            case 'dateNotification'      : contractNode.dateNotification = parser.isoparse(contract.dateNotification)
-            case 'datePublicationDonnees': contractNode.datePublicationDonnees = parser.isoparse(contract.datePublicationDonnees)
-            case 'created_at'            : contractNode.created_at = parser.isoparse(contract.created_at)
-            case 'updated_at'            : contractNode.updated_at = parser.isoparse(contract.updated_at)
+            case 'dateNotification'      : contractNode.dateNotification = parser.parse(contract.dateNotification, fuzzy= True)
+            case 'datePublicationDonnees': contractNode.datePublicationDonnees = parser.parse(contract.datePublicationDonnees, fuzzy= True)
+            case 'created_at'            : contractNode.created_at = parser.parse(contract.created_at, fuzzy= True)
+            case 'updated_at'            : contractNode.updated_at = parser.parse(contract.updated_at, fuzzy= True)
             case _: pass
 
     contractNode.save()
@@ -334,12 +334,12 @@ def addEnterprise(titulaire: pd.Series) -> pd.Series:
             # enregistrement des informations optionnelles
             for col in cols:
                 match col:
-                    case 'dateDebut'                           : enterprise.dateDebut = parser.isoparse(*df[col])
+                    case 'dateDebut'                           : enterprise.dateDebut = parser.parse(*df[col], fuzzy= True)
                     case 'dateCreationEtablissement'           :
-                        enterprise.dateCreationEtablissement = parser.isoparse(*df[col])
+                        enterprise.dateCreationEtablissement = parser.parse(*df[col], fuzzy= True)
                     case 'dateCreationUniteLegale'             :
-                        enterprise.dateCreationUniteLegale = parser.isoparse(*df[col])
-                    case 'dateFin'                             : enterprise.dateFin = parser.isoparse(*df[col])                        ,
+                        enterprise.dateCreationUniteLegale = parser.parse(*df[col], fuzzy= True)
+                    case 'dateFin'                             : enterprise.dateFin = parser.parse(*df[col], fuzzy= True)                        ,
                     case 'denominationUniteLegale'             : enterprise.denominationUniteLegale = str(*df[col])
                     case 'nicSiegeUniteLegale'                 : enterprise.nicSiegeUniteLegale = str(*df[col])
                     case 'categorieEntreprise'                 : enterprise.categorieEntreprise = str(*df[col])
