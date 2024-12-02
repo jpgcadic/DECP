@@ -13,7 +13,8 @@ La structure du jeu de données principal, tabulaire, se prête bien à une mod�
 ## Jeux de données principaux
 Ces jeux de données listent les marchés attribués dans le cadre des appels d'offres publics.
 Ils sont organisés en enregistrements, 1 ligne = 1 enregistrement = 1 marché, sous réserves de discussions et précisions abordées dans la partie "modélisation".
-Les jeux de données principaux (DECP) sont disponibles sous [DECP](https://data.economie.gouv.fr/explore/?sort=modified&q=DECP)
+Les jeux de données principaux (DECP) sont disponibles sous [DECP](https://data.economie.gouv.fr/explore/?sort=modified&q=DECP).
+
 Seuls les jeux de données relatifs aux marchés sont exploités, les trois jeux de données relatifs aux concessions ne sont pas exploités.
 Les données présentes dans ces jeux de données sont issues de plusieurs sources, la source de chaque enregistrement est identifiée
 dans un de ses champs.
@@ -29,10 +30,9 @@ La description des éléments métiers de ces jeux de données n'est pas encore 
 Ce jeu de données est enrichi avec des informations relatives à la localisation des entités (titulaires, acheteurs, lieu d'exécution). La base des codes postaux ainsi que les bases du Code Officiel Géographique de l'INSEE (*arrondissements, communes, cantons, départements, régions, collectivités, pays*), d'Eurostat (*base NUTS*) et de la nomenclature ISO des régions (*ISO-3166-2*) sont utilisées. La base Cedex, payante, n'est ici pas exploitée.
 La nomenclature régionale ISO est normalement disponible en version payante, ici récupérée "manuellement" puis retraitée.
 Ces jeux de données sont disponibles sous :
+
 [nomenclatures INSEE](https://www.insee.fr/fr/information/7766585)
-
 [nomenclature NUTS](https://ec.europa.eu/eurostat/fr/web/nuts)
-
 [nomenclature ISO](https://www.iso.org/obp/ui/fr/#iso:code:3166:FR)
 
 
