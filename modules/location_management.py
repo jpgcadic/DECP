@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[ ]:
+# In[4]:
 
 
 import pandas as pd
@@ -41,18 +41,18 @@ from pynsee import get_file_list, download_file
 import eurostat 
 
 
-# In[ ]:
+# In[7]:
 
 
 if '__file__' not in globals():
     sys.path.append(str(Path().absolute().parent))
-from modules.config import session
+from modules.config import *
 from modules.neomodel_classes import *
 from modules.location_loaders import *
 from modules.location_constructors import getCity, getRegionFromDepartement, getArrondissement, getCanton, getDepartement, getRegion, getCountry
 
 
-# In[ ]:
+# In[6]:
 
 
 def getDeliveryLocation(codes: dict) -> tuple[dict, (LocationNode | Cedex | City | Region | Country)]:
@@ -71,9 +71,11 @@ def getDeliveryLocation(codes: dict) -> tuple[dict, (LocationNode | Cedex | City
     codes = getLocationCode(codes)
 
     try:
-        locationNode = LocationNode.nodes.get(code= codes[codes['final']], codeType= codes['type'], name= codes['nom'])
+        # le nom n'est plus utilisé, considérant qu'il peut être entaché d'erreurs dans les datasets
+        # ce qui pourrait entraîner la création de plusiurs noeuds correspondant en réalité à une même entité
+        # locationNode = LocationNode.nodes.get(code= codes[codes['final']], codeType= codes['type'], name= codes['nom'])
+        locationNode = LocationNode.nodes.get(code= codes[codes['final']], codeType= codes['type'])
 
-    # + 'canton', 'arrondissement', 'departement' ?
     except DoesNotExist:
         match codes['final']:
             case 'postal' | 'commune' | 'cedex':
@@ -94,7 +96,7 @@ def getDeliveryLocation(codes: dict) -> tuple[dict, (LocationNode | Cedex | City
     return codes, locationNode
 
 
-# In[ ]:
+# In[2]:
 
 
 def getLocationCode(codes:dict) -> dict:

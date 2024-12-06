@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[3]:
+# In[2]:
 
 
 import pandas as pd
@@ -41,12 +41,12 @@ from pynsee import get_file_list, download_file
 import eurostat 
 
 
-# In[5]:
+# In[3]:
 
 
 if '__file__' not in globals():
     sys.path.append(str(Path().absolute().parent))
-from modules.config import session
+from modules.config import *
 from modules.neomodel_classes import *
 from modules.location_loaders import *
 

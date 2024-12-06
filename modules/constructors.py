@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[3]:
+# In[2]:
 
 
 import pandas as pd
@@ -42,25 +42,25 @@ import eurostat
 
 
 
-# In[4]:
+# In[15]:
 
 
 if '__file__' not in globals():
     sys.path.append(str(Path().absolute().parent))
 
-from modules.config import session
+from modules.config import *
 from modules.neomodel_classes import *
 from modules.location_management import getDeliveryLocation, getLocationCode
 from modules.location_constructors import getCity, getRegionFromDepartement
 
 
-# In[5]:
+# In[4]:
 
 
 import json
 
 
-# In[9]:
+# In[13]:
 
 
 def addContract(contract: pd.Series):
@@ -75,9 +75,9 @@ def addContract(contract: pd.Series):
     titulaires = pd.concat([contract[col0].reset_index(drop= True),
                            contract[col1].reset_index(drop= True),
                            contract[col2].reset_index(drop= True),
-                           pd.Series(index= range(0, 3)),
-                           pd.Series(index= range(0, 3)),
-                           pd.Series(index= range(0, 3))],
+                           pd.Series(index= range(0, 3), dtype= object),
+                           pd.Series(index= range(0, 3), dtype= str),
+                           pd.Series(index= range(0, 3), dtype= object)],
                            keys= ['SIRET', 'DS', 'TYPE_ID', 'NODE', 'SIRET_SIEGE', 'NODE_SIEGE'],
                            axis= 1)
     # création des titulaires
@@ -87,17 +87,20 @@ def addContract(contract: pd.Series):
 
     # création des noeuds sièges si distincts des titulaires
     sieges = titulaires[titulaires.SIRET_SIEGE.notna()]
-    sieges['SIRET'] = sieges['SIRET_SIEGE']
-    sieges = sieges.apply(addEnterprise, axis= 1)
-    # création des liens avec les sièges
-    sieges.apply(lambda x: x.NODE.siege.connect(x.NODE_SIEGE), axis= 1)
+    if sieges.size != 0:
+        sieges['SIRET'] = sieges['SIRET_SIEGE']
+        sieges = sieges.apply(addEnterprise, axis= 1)
+        # création des liens avec les sièges
+        sieges.apply(lambda x: x.NODE.siege.connect(x.NODE_SIEGE), axis= 1)
     
+
+    # création du contrat
+
     contractKey = {'year': parser.parse(contract.dateNotification, fuzzy= True).year,
                    'id': contract.id,
                    'titulaire': contract.titulaire_id_1,
                    'montant': contract.montant,
                    'objet': contract.objet}
-    # création du contrat
     try:
         contractNode = Contract.nodes.get(key = contractKey)
     except DoesNotExist:
@@ -133,43 +136,69 @@ def addContract(contract: pd.Series):
         # 1 seul titulaire
         titulaires[titulaires.SIRET.notna()].apply(lambda x: x.NODE.publicContract.connect(contractNode), axis= 1)
 
-    # mise à jour du noeud contrat
-    colsContractOptions = ['nature', 'codeCPV', 'procedure','dureeMois', 'id', 'formePrix', 'dateNotification', 'objet',
-                       'montant', 'source', 'technique', 'modaliteExecution', 'idAccordCadre', 'marcheInnovant', 
-                       'ccag', 'offresRecues', 'attributionAvance', 'typeGroupementOperateurs', 'origineUE', 
-                       'origineFrance', 'sousTraitanceDeclaree', 'actesSousTraitance', 
-                       'modificationsActesSousTraitance', 'TypePrix', 'tauxAvance', 'typePrix', 'booleanModification']
+    # mise à jour du noeud contrat à partir des colonnes exploitées depuis le dataset original
+    colsContractOptions = colsContractBaseOptions + \
+                          colsConsiderationsSociales + \
+                          colsConsiderationsEnvironnementales + \
+                          colsModaliteExecution + \
+                          colsTechniques
+    
+    # on applique les modifications (ajouts, suppressions, renommages) appliquées sur les colonnes du dataset original
+    # on se base pour cela sur le dataset v3. A revoir dans l'avenir.
+    colsContractOptions = [c if c not in renameColsV3.keys() else renameColsV3[c] for c in useColsV3]
+    colsContractOptions += addColsV3
+    colsContractOptions = [c for c in colsContractOptions if c not in dropColsV3]
+    
     contractOptions = contract[colsContractOptions]
     cols = contractOptions[contractOptions.notna()].index
+ 
     for col in cols:
         match col:
-            case 'nature'                   : contractNode.nature = contract.nature
-            case 'codeCPV'                  : contractNode.codeCPV = contract.codeCPV
-            case 'dureeMois'                : contractNode.dureeMois = contract.dureeMois
-            case 'formePrix'                : contractNode.formePrix = contract.formePrix
-            case 'objet'                    : contractNode.objet = contract.objet
-            case 'source'                   : contractNode.source = contract.source
-            case 'technique'                : contractNode.technique = contract.technique
-            case 'modaliteExecution'        : contractNode.modaliteExecution = contract.modaliteExecution
-            case 'idAccordCadre'            : contractNode.idAccordCadre = contract.idAccordCadre
-            case 'marcheInnovant'           : contractNode.marcheInnovant = contract.marcheInnovant
-            case 'ccag'                     : contractNode.ccag = contract.ccag
-            case 'offresRecues'             : contractNode.offresRecues = contract.offresRecues
-            case 'attributionAvance'        : contractNode.attributionAvance = contract.attributionAvance
-            case 'origineUE'                : contractNode.origineUE = contract.origineUE
-            case 'origineFrance'            : contractNode.origineFrance = contract.origineFrance
-            case 'sousTraitanceDeclaree'    : contractNode.sousTraitanceDeclaree = contract.sousTraitanceDeclaree
-            case 'actesSousTraitance'       : contractNode.actesSousTraitance = contract.actesSousTraitance
-            case 'modificationsActesSousTraitance' : 
-                contractNode.modificationsActesSousTraitance = contract.modificationsActesSousTraitance
-            case 'TypePrix'                 : contractNode.TypePrix = contract.TypePrix
-            case 'tauxAvance'               : contractNode.tauxAvance = contract.tauxAvance
-            case 'typePrix'                 : contractNode.typePrix = contract.typePrix
-            case 'booleanModification'      : contractNode.booleanModification = contract.booleanModification
+            case 'nature'                   : contractNode.nature = contract[col]
+            case 'codeCPV'                  : contractNode.codeCPV = contract[col]
+            case 'dureeMois'                : contractNode.dureeMois = contract[col]
+            case 'formePrix'                : contractNode.formePrix = contract[col]
+            case 'objet'                    : contractNode.objet = contract[col]
+            case 'source'                   : contractNode.source = contract[col]
+            case 'techniques'               : contractNode.technique = contract[col]
+            case 'modalitesExecution'       : contractNode.modaliteExecution = contract[col]
+            case 'idAccordCadre'            : contractNode.idAccordCadre = contract[col]
+            case 'marcheInnovant'           : contractNode.marcheInnovant = contract[col]
+            case 'ccag'                     : contractNode.ccag = contract[col]
+            case 'offresRecues'             : contractNode.offresRecues = contract[col]
+            case 'attributionAvance'        : contractNode.attributionAvance = contract[col]
+            case 'origineUE'                : contractNode.origineUE = contract[col]
+            case 'origineFrance'            : contractNode.origineFrance = contract[col]
+            case 'sousTraitanceDeclaree'    : contractNode.sousTraitanceDeclaree = contract[col]
+            case 'actesSousTraitance'       : contractNode.actesSousTraitance = contract[col]
+            case 'typesPrix'                : contractNode.typePrix = contract[col]
+            case 'tauxAvance'               : contractNode.tauxAvance = contract[col]
+            case 'booleanModification'      : contractNode.booleanModification = contract[col]
+            case 'considerationsSociales'   : contractNode.considerationsSociales = contract[col]
+            case 'considerationsEnvironnementales' : contractNode.considerationsEnvironnementales = contract[col]
+            
+            case 'Clause sociale'           : contractNode.clauseSociale = contract[col]
+            case 'Critère social'           : contractNode.critereSocial = contract[col]
+            case 'Marché réservé'           : contractNode.marcheReserve = contract[col]
+
+            case 'Critère environnemental'  : contractNode.critereEnvironnemental = contract[col]
+            case 'Clause environnementale'  : contractNode.clauseEnvironnementale = contract[col]
+
+            case 'Bons de commande'         : contractNode.bonsDeCommande = contract[col]
+            case 'Tranches'                 : contractNode.tranches = contract[col]
+            case 'Marchés subséquents'      : contractNode.marchesSubsequents = contract[col]
+            case 'Mixte'                    : contractNode.mixte = contract[col]
+
+            case 'Accord-cadre'             : contractNode.accordCadre = contract[col]
+            case 'Catalogue électronique'   : contractNode.catalogueElectronique = contract[col]
+            case 'Concours',                : contractNode.concours = contract[col]
+            case 'Acquisition dynamique'    : contractNode.AcquisitionDynamique = contract[col]
+            case 'Système de qualification' : contractNode.systemeDeQualification = contract[col]
+            case 'Enchère électronique'     : contractNode.enchereElectronique = contract[col]
             case _                          : pass             
            
     # mise à jour des dates au format datetime.date, en évitant les valeurs NaN
-    colsDatesContract = ['dateNotification', 'datePublicationDonnees', 'created_at', 'updated_at']
+    colsDatesContract = ['dateNotification', 'datePublicationDonnees']
     datesContract = contract[colsDatesContract]
     cols = datesContract[datesContract.notna()].index
     for col in cols:
@@ -240,12 +269,13 @@ def addContract(contract: pd.Series):
     
     # création de l'entité siège de l'acheteur 
     siegeBuyer = entBuyer[entBuyer.SIRET_SIEGE.notna()]
-    siegeBuyer['TYPE_ID'] = 'SIRET'
-    siegeBuyer['SIRET'] = siegeBuyer['SIRET_SIEGE']
-    siegeBuyer = siegeBuyer.apply(addEnterprise, axis= 1)
+    if siegeBuyer.size != 0:
+        siegeBuyer['TYPE_ID'] = 'SIRET'
+        siegeBuyer['SIRET'] = siegeBuyer['SIRET_SIEGE']
+        siegeBuyer = siegeBuyer.apply(addEnterprise, axis= 1)
 
-    # création du lien entreprise acheteur -> siège entreprise acheteur
-    siegeBuyer.apply(lambda x: x.NODE.siege.connect(x.NODE_SIEGE), axis= 1)
+        # création du lien entreprise acheteur -> siège entreprise acheteur
+        siegeBuyer.apply(lambda x: x.NODE.siege.connect(x.NODE_SIEGE), axis= 1)
 
     # création du lien acheteur -> contrat
     buyer.managedContract.connect(contractNode)
@@ -266,7 +296,7 @@ def addContract(contract: pd.Series):
     return
 
 
-# In[8]:
+# In[14]:
 
 
 def addEnterprise(titulaire: pd.Series) -> pd.Series:
@@ -340,7 +370,9 @@ def addEnterprise(titulaire: pd.Series) -> pd.Series:
                     case 'dateCreationUniteLegale'             :
                         enterprise.dateCreationUniteLegale = parser.parse(*df[col], fuzzy= True)
                     case 'dateFin'                             : enterprise.dateFin = parser.parse(*df[col], fuzzy= True)                        ,
-                    case 'denominationUniteLegale'             : enterprise.denominationUniteLegale = str(*df[col])
+                    # ligne suivante supprimée, incohérent avec traitement effectué précédemment 
+                    # case 'denominationUniteLegale'             : enterprise.denominationUniteLegale = str(*df[col])
+                    # 
                     case 'nicSiegeUniteLegale'                 : enterprise.nicSiegeUniteLegale = str(*df[col])
                     case 'categorieEntreprise'                 : enterprise.categorieEntreprise = str(*df[col])
                     case 'categorieJuridiqueUniteLegale'       : enterprise.categorieJuridiqueUniteLegale = str(*df[col])
