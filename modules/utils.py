@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[7]:
+# In[1]:
 
 
 import pandas as pd
@@ -15,6 +15,7 @@ import requests
 from requests.exceptions import RequestException
 from datetime import date
 from dateutil import parser
+from loguru import logger
 
 from neo4j import GraphDatabase
 
@@ -39,10 +40,13 @@ from pynsee import get_file_list, download_file
 
 import eurostat 
 
+import LuhnExtended
 
-# In[8]:
+
+# In[2]:
 
 
+@logger.catch
 def connect(session, mode):
     """
     - session : dictionary
@@ -68,9 +72,10 @@ def connect(session, mode):
     return driver
 
 
-# In[4]:
+# In[3]:
 
 
+@logger.catch
 def resumeInstance(session: dict):
     """
     """
@@ -80,9 +85,10 @@ def resumeInstance(session: dict):
     return response
 
 
-# In[5]:
+# In[4]:
 
 
+@logger.catch
 def get_config(session, config_file= 'config.ini'):
     """
     Fonction permettant d'extraire la configuration de l'environnement d'exécution (dossiers, fichiers).
@@ -201,9 +207,10 @@ def get_config(session, config_file= 'config.ini'):
     return config
 
 
-# In[6]:
+# In[5]:
 
 
+@logger.catch
 def getDS(siret: str) -> str:
     """
     - siret : 14 caractères.
@@ -217,4 +224,128 @@ def getDS(siret: str) -> str:
     
     except RequestException:
         return ''
+
+
+# In[6]:
+
+
+def checkSiretOrSiren(sirenId: str) -> (str, str | None):
+    """
+    Vérifie les cas où :
+    siret = '3.335617770002511e+16' --> '33356177700025' (siret)
+    siret = '718051600135.0'        --> '718051600135' (siret) 
+    siret = '508532033.0'           --> '508532033' (siren)
+    siret = '35600000072282'        --> '35600000072282' (siret d'un établissement de La Poste)
+
+    retourne : sirenId, sirenType
+        sirenId : la valeur identifiée, ou bien l'identifiant d'origine si pas d'dentification (sirenType = None)
+        sirenType : 'siret' ou 'siren' si identification, None sinon
+    """
+    sirenType = None
+    sirenSource = sirenId
+
+    if sirenId[0:9] == '356000000':
+        sirenId, sirenType = checkLaPosteSiret(sirenId)
+    
+    elif sirenId.find('e') != -1:
+        # probablement conversion erronée en notation scientifique x.yyyyyyyyyyye+zz
+        sirenId = sirenId.split('e')[0]
+        sirenId = sirenId.replace('.', '')
+        sirenId = sirenId[0:15]   # on va regarder les 15 premiers digits, pour traiter le cas de premier digit 0
+        match len(sirenId):
+            case 13: sirenId, sirenType = checkSirenIncompleteCode(sirenId)
+            case 14: sirenId, sirenType = checkSirenCodeWithZero(sirenId, 14)
+            case 15: sirenId, sirenType = checkSirenCodeWithZero(sirenId, 14)
+            case 9 : sirenId, sirenType = checkSirenCodeWithZero(sirenId, 9)
+            case 8 : sirenId, sirenType = checkSirenIncompleteCode(sirenId)
+            case _:
+                sirenType = None
+                logger.trace("Longueur de code SIRENE {} incorrecte : {} après correction format scientifique",
+                             sirenId, len(sirenId))
+
+                
+    elif sirenId.find('.') != -1:
+        # la chaîne de caractères supposée représenter le numéro contient un point, probablement conversion erronée en float
+        # mais cette fois-ci pas en notation scientifique
+        sirenId = sirenId.split('.')[0]
+        match len(sirenId):
+            case 8  : sirenId, sirenType = checkSirenIncompleteCode(sirenId)
+            case 13 : sirenId, sirenType = checkSirenIncompleteCode(sirenId)
+            case 9  : sirenType = 'siren' if LuhnExtended.verify(sirenId) else None
+            case 14 : sirenType = 'siret' if LuhnExtended.verify(sirenId) else None
+            case _  :
+                sirenType = None
+                logger.trace("Longueur de code SIRENE {} incorrecte : {} après correction format float",
+                             sirenId, len(sirenId))
+
+
+    elif len(sirenId) in [8, 9, 13, 14]:
+        match len(sirenId):
+            case 8  : sirenId, sirenType = checkSirenIncompleteCode(sirenId)
+            case 13 : sirenId, sirenType = checkSirenIncompleteCode(sirenId)
+            case 9  : sirenType = 'siren' if LuhnExtended.verify(sirenId) else None
+            case 14 : sirenType = 'siret' if LuhnExtended.verify(sirenId) else None
+            case _:
+                sirenType = None
+                logger.trace("Longueur de code SIRENE {} incorrecte : {}", sirenId, len(sirenId))
+    else:
+        sirenType = None
+        logger.trace("Longueur de code SIRENE {} incorrecte : {}", sirenId, len(sirenId))
+
+    if sirenType is None:
+        logger.trace("Vérification de code SIRENE infructueuse : {}, code initial = {}", sirenId, sirenSource)
+
+    return sirenId, sirenType
+
+
+# In[7]:
+
+
+def checkSirenIncompleteCode(sirenId: str) -> (str, str | None):
+    if LuhnExtended.verify('0' + sirenId):
+        sirenType = 'siren' if len(sirenId) == 8 else 'siret'
+        sirenId = '0' + sirenId
+    else:
+        sirenType = None
+    
+    return sirenId, sirenType
+
+
+# In[8]:
+
+
+def checkSirenCodeWithZero(sirenId: str, longueur: int) -> (str, str | None):
+    if not LuhnExtended.verify(sirenId[0:longueur]):
+        if LuhnExtended.verify('0' + sirenId[0:longueur - 1]):
+            sirenType = 'siret' if longueur == 14 else 'siren'
+            sirenId = '0' + sirenId[0:longueur - 1]
+        else:
+            sirenType = None
+    else:
+        sirenId = sirenId[0:longueur]
+        sirenType = 'siret' if longueur == 14 else 'siren'
+    
+    return sirenId, sirenType
+
+
+# In[9]:
+
+
+def checkLaPosteSiret(sirenId: str) -> (str, str | None):
+    sirenId = sirenId[0:14]
+    if len(sirenId) not in [9, 14]:
+        sirenType = None
+    elif not LuhnExtended.verify(sirenId):
+        sum = 0
+        for d in sirenId:
+            sum += int(d)
+        if sum % 5 == 0:
+            sirenType = 'siren' if len(sirenId) == 9 else 'siret'
+        else:
+            sirenType = None
+            logger.trace("Code établissement Poste invalide : {}", sirenId)
+    else:
+        sirenType = 'siren' if len(sirenId) == 9 else 'siret'
+    
+    return sirenId, sirenType
 
