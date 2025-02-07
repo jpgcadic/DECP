@@ -1,0 +1,104 @@
+node {
+  diameter: 50px;
+  color: #A5ABB6;
+  border-color: #9AA1AC;
+  border-width: 2px;
+  text-color-internal: #FFFFFF;
+  font-size: 10px;
+}
+relationship {
+  color: #A5ABB6;
+  shaft-width: 1px;
+  font-size: 8px;
+  padding: 3px;
+  text-color-external: #000000;
+  text-color-internal: #FFFFFF;
+  caption: "<type>";
+}
+node.Person {
+  color: #C990C0;
+  border-color: #b261a5;
+  text-color-internal: #FFFFFF;
+  defaultCaption: "<id>";
+  caption: "{name}";
+}
+node.Movie {
+  color: #F79767;
+  border-color: #f36924;
+  text-color-internal: #FFFFFF;
+  defaultCaption: "<id>";
+  caption: "{title}";
+}
+node.Contract {
+  color: #57C7E3;
+  border-color: #23b3d7;
+  text-color-internal: #2A2C34;
+  defaultCaption: "<id>";
+  caption: "{objet}";
+}
+node.LocationNode {
+  color: #F16667;
+  border-color: #eb2728;
+  text-color-internal: #FFFFFF;
+  caption: "{name}";
+}
+node.Buyer {
+  color: #D9C8AE;
+  border-color: #c0a378;
+  text-color-internal: #2A2C34;
+  caption: "{buyerName}";
+}
+node.Enterprise {
+  color: #8DCC93;
+  border-color: #5db665;
+  text-color-internal: #2A2C34;
+  caption: "{titulaireDenominationSociale}";
+}
+node.Country {
+  color: #ECB5C9;
+  border-color: #da7298;
+  text-color-internal: #2A2C34;
+  defaultCaption: "<id>";
+  caption: "{countryName}";
+}
+node.City {
+  color: #4C8EDA;
+  border-color: #2870c2;
+  text-color-internal: #FFFFFF;
+  defaultCaption: "<id>";
+  caption: "{cityName}";
+}
+node.Departement {
+  color: #DA7194;
+  border-color: #cc3c6c;
+  text-color-internal: #FFFFFF;
+  defaultCaption: "<id>";
+  caption: "{departementName}";
+}
+node.Region {
+  color: #569480;
+  border-color: #447666;
+  text-color-internal: #FFFFFF;
+  defaultCaption: "<id>";
+  caption: "{regionName}";
+}
+node.MultiPartyContract {
+  defaultCaption: "<id>";
+  caption: "{objet}";
+}
+node.Arrondissement {
+  defaultCaption: "<id>";
+  caption: "{arrondissementName}";
+}
+node.Address {
+  defaultCaption: "<id>";
+  caption: "{name}";
+}
+node.Cedex {
+  defaultCaption: "<id>";
+  caption: "{codeCedex}";
+}
+node.Canton {
+  defaultCaption: "<id>";
+  caption: "{cantonName}";
+}
