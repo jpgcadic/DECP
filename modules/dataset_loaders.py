@@ -1,10 +1,11 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[1]:
+# In[8]:
 
 
 import pandas as pd
+import numpy as np
 import sys
 from pathlib import Path
 import glob
@@ -19,7 +20,7 @@ if '__file__' not in globals():
 from modules.config import *
 
 
-# In[3]:
+# In[9]:
 
 
 def loadDecpV3(dataset: str):
@@ -99,7 +100,7 @@ def mergeTypePrixV3(decp: pd.DataFrame):
     return decp
 
 
-# In[4]:
+# In[11]:
 
 
 def loadDecpV4(dataset: str):
@@ -163,6 +164,8 @@ def loadDecpV4(dataset: str):
     repBools = {'non': 0, 'Non': 0, 'false': 0, 'False': 0, 'oui': 1, 'Oui': 1, 'true': 1, 'True': 1, 0: 0}
     decp.loc[:,colonnesBool] = decp.loc[:, colonnesBool].fillna(value= 0)
     decp.loc[:, colonnesBool] = decp.loc[:, colonnesBool].map(lambda x: repBools[x])
+
+    decpv4.loc[decpv4['tauxAvance'] == 'INX 0.0', 'tauxAvance'] = '0'
     
     return decp
 
