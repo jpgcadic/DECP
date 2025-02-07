@@ -1,12 +1,16 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[50]:
+# In[2]:
 
 
 session = {}
 
-colonnesNum = {'montant': float, 'dureeMois': int, 'offresRecues': int}
+# colonnes non représentées par une chaîne de caractères. format float retenu pour supporter la présence de NaN
+colonnesNum = {'montant': float, 'dureeMois': float, 'offresRecues': float}
+
+# colonnes représentant un booléen, pour traitement lors du chargement (oui/non, true/false...)
+colonnesBool = ['marcheInnovant', 'attributionAvance', 'sousTraitanceDeclaree']
 
 # liste des colonnes lues dans le dataset original, données au format v3
 useColsV3 = ['titulaire_denominationSociale_1', 'titulaire_id_1', 'titulaire_typeIdentifiant_1',
@@ -48,7 +52,7 @@ colsConsiderationsEnvironnementales = ['Pas de considération environnementale',
 
 colsModaliteExecution = ['Bons de commande', 'Tranches', 'Marchés subséquents', 'Mixte']
 
-varsModaliteExecution = ['Bon* de commande', 'Tranche*', 'Marché* subséquent*', 'Mixte']
+varsModaliteExecution = ['commande', 'tranche', 'subséquent', 'Mixte']
 
 colsTechniques = ['Accord-cadre', 'Catalogue électronique', 'Concours', 'Acquisition dynamique',
                   'Système de qualification', 'Enchère électronique']
@@ -61,7 +65,6 @@ valTypesPrix = ['Définitif ferme', 'Définitif révisable', 'Définitif actuali
 colsContractBaseOptions = ['nature', 'codeCPV', 'procedure','dureeMois', 'id', 'formePrix', 'dateNotification', 'objet',
                            'montant', 'source', 'technique', 'modaliteExecution', 'idAccordCadre', 'marcheInnovant', 
                            'ccag', 'offresRecues', 'attributionAvance', 'typeGroupementOperateurs', 'origineUE', 
-                           'origineFrance', 'sousTraitanceDeclaree', 'actesSousTraitance',
-                           'modificationsActesSousTraitance', 'tauxAvance', 'typesPrix', 'booleanModification']
+                           'origineFrance', 'sousTraitanceDeclaree', 'tauxAvance', 'typesPrix']
 
 
