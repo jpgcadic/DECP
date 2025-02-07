@@ -20,18 +20,23 @@ from neomodel.integration.numpy import to_ndarray
 # In[2]:
 
 
-modelVersion = '0.1.0'
+modelVersion = '1.0.1'
+
+class CommonRecordProperty:
+    recordCreationDate = DateTimeFormatProperty(index= True, format="%Y-%m-%d %H:%M:%S")
+    recordLastUpdate   = DateTimeFormatProperty(index= True, format="%Y-%m-%d %H:%M:%S")
+    modelVersion       = StringProperty(required=True)
 
 class LocationRel(StructuredRel):
     deliveryLocationTypeId = StringProperty()
     
 
-class Enterprise(StructuredNode):
-    modelVersion                          = StringProperty(required=True)
+class Enterprise(StructuredNode, CommonRecordProperty):
     titulaireId                           = StringProperty(unique_index=True, required=True)
     titulaireSiren                        = StringProperty(unique_index=False, required=True)
     titulaireSite                         = StringProperty(unique_index=False, required=True)
     titulaireDenominationSociale          = StringProperty(unique_index=False, required=True)
+    titulaireDenominationOriginale        = StringProperty(unique_index=False, required=False)
     titulaireTypeIdentifiant              = StringProperty(unique_index=False, required=True)
     isSiege                               = BooleanProperty(unique_index=False, required=True)
     dateDebut                             = DateProperty(unique_index=False, required=False)
@@ -73,40 +78,28 @@ class Enterprise(StructuredNode):
     
     publicContract            = RelationshipTo('Contract', 'HAS_CONTRACT')
     siege                     = RelationshipTo('Enterprise', 'IS_BRANCH_OF')
-    coContractor              = RelationshipTo('Partnership', 'IS_IN_PARTNERSHIP')
-    enterpriseLocation        = RelationshipTo('LocationNode', 'IS_LOCATED_IN')
+    enterpriseLocation        = RelationshipTo('LocationNode', 'IS_LOCATED_IN', model= LocationRel)
 
 
-class Buyer(StructuredNode):
-    modelVersion    = StringProperty(required=True)
+class Buyer(StructuredNode, CommonRecordProperty):
     buyerId         = StringProperty(unique_index=False, required=True)
     buyerSiren      = StringProperty(unique_index=False, required=True)
     buyerSite       = StringProperty(unique_index=False, required=True)
-    buyerName       = StringProperty(unique_index=False, required=True)
+    buyerName       = StringProperty(unique_index=False, required=False)
+    buyerLegalName  = StringProperty(unique_index=False, required=False)
+    buyerLegalData  = BooleanProperty()
 
-    buyerLocation   = RelationshipTo('LocationNode', 'IS_LOCATED_IN')
+    buyerLocation   = RelationshipTo('LocationNode', 'IS_LOCATED_IN', model= LocationRel)
     managedContract = RelationshipTo('Contract', 'MANAGES_CONTRACT')
     buyerEnterprise = RelationshipTo('Enterprise', 'IS_IN_ENTERPRISE')
 
 
-class Partnership(StructuredNode):
-    modelVersion             = StringProperty(required=True)
-    idContract               = StringProperty(unique_index=True, required=True)
-    typeGroupementOperateurs = StringProperty(unique_index=False, required=True)
-    year                     = StringProperty(unique_index=False, required=True)
-    month                    = StringProperty(unique_index=False, required=True)
-    day                      = StringProperty(unique_index=False, required=True)
-    
-    publicContract           = RelationshipTo('Contract', 'HAS_CONTRACT')
-
-
-class Contract(StructuredNode):
-    modelVersion                      = StringProperty(required=True)
+class Contract(StructuredNode, CommonRecordProperty):
     key                               = JSONProperty(unique_index=True, required=True)
-    idContract                        = StringProperty(unique_index=False, required=True)
-    year                              = StringProperty(unique_index=False, required=True)
-    month                             = StringProperty(unique_index=False, required=True)
-    day                               = StringProperty(unique_index=False, required=True)
+    contractId                        = StringProperty(unique_index=False, required=False)
+    year                              = IntegerProperty(unique_index=False, required=True)
+    month                             = IntegerProperty(unique_index=False, required=True)
+    day                               = IntegerProperty(unique_index=False, required=True)
     procedure                         = StringProperty(unique_index=False, required=True)
     montant                           = FloatProperty(unique_index=False, required=True)
     nature                            = StringProperty(unique_index=False, required=False)
@@ -137,9 +130,11 @@ class Contract(StructuredNode):
 
     deliveryLocation                  = RelationshipTo('LocationNode', 'IS_DELIVERED_IN', model= LocationRel)
 
+class MultiPartyContract(Contract):
+    typeGroupementOperateurs = StringProperty(unique_index=False, required=True)
 
-class LocationNode(StructuredNode):
-    modelVersion  = StringProperty(required=True)
+    
+class LocationNode(StructuredNode, CommonRecordProperty):
     codeTypes     = {'code postal'        : 'code postal',
                      'code departement'   : 'code departement',
                      'code pays'          : 'code pays',
@@ -155,14 +150,12 @@ class LocationNode(StructuredNode):
 
 
 class Address(LocationNode):
-    modelVersion = StringProperty(required=True)
     streetNumber = StringProperty(unique_index=False, required=False)
     streetName   = StringProperty(unique_index=False, required=False)
-    city         = RelationshipTo('LocationNode', 'IS_LOCATED_IN')
+    city         = RelationshipTo('LocationNode', 'IS_LOCATED_IN', model= LocationRel)
     
 
 class City(LocationNode):
-    modelVersion  = StringProperty(required=True)
     codeCommune   = StringProperty(unique_index= True, required= True)
     codeTypes     = {'code postal'        : 'code postal',
                      'code commune'       : 'code commune'
@@ -170,12 +163,11 @@ class City(LocationNode):
     codeType     = StringProperty(unique_index= False, required= False, default= 'code commune', choices= codeTypes)
     postCode     = StringProperty(unique_index=False, required=False)
     cityName     = StringProperty(unique_index=False, required=False)
-    region       = RelationshipTo('Region', 'IS_IN_REGION')
-    departement  = RelationshipTo('Departement', 'IS_IN_DEPARTEMENT')
+    region       = RelationshipTo('Region', 'IS_IN_REGION', model= LocationRel)
+    departement  = RelationshipTo('Departement', 'IS_IN_DEPARTEMENT', model= LocationRel)
 
 
 class Cedex(LocationNode):
-    modelVersion  = StringProperty(required=True)
     codeCedex     = StringProperty(unique_index= True, required= True)
     codeCommune   = StringProperty(unique_index= False, required= False)
     codeTypes     = {'code postal'        : 'code postal',
@@ -184,20 +176,18 @@ class Cedex(LocationNode):
                     }
     codeType     = StringProperty(unique_index= False, required= False, default= 'cedex', choices= codeTypes)
     cityName     = StringProperty(unique_index=False, required=False)
-    region       = RelationshipTo('Region', 'IS_IN_REGION')
-    departement  = RelationshipTo('Departement', 'IS_IN_DEPARTEMENT')
+    region       = RelationshipTo('Region', 'IS_IN_REGION', model= LocationRel)
+    departement  = RelationshipTo('Departement', 'IS_IN_DEPARTEMENT', model= LocationRel)
 
 
 class Region(LocationNode):
-    modelVersion = StringProperty(required=True)
     codeType     = StringProperty(unique_index= False, required= False, default= 'code region')
     regionCode   = StringProperty(unique_index=True, required=True)
     regionName   = StringProperty(unique_index=True, required=True)
-    country      = RelationshipTo('Country', 'IS_IN_COUNTRY')
+    country      = RelationshipTo('Country', 'IS_IN_COUNTRY', model= LocationRel)
 
 
 class Country(LocationNode):
-    modelVersion = StringProperty(required=True)
     # on considère que le code pays est sous format ISO2
     codeFormat  = StringProperty(unique_index= False, required= False, default= 'ISO2')
     codeType    = StringProperty(unique_index= False, required= False, default= 'code pays')
@@ -206,30 +196,27 @@ class Country(LocationNode):
 
 
 class Departement(LocationNode):
-    modelVersion      = StringProperty(required=True)
     codeType          = StringProperty(unique_index= False, required= False, default= 'code departement')
     departementCode   = StringProperty(unique_index=True, required=True)
     departementName   = StringProperty(unique_index=True, required=True)
-    country           = RelationshipTo('Country', 'IS_IN_COUNTRY')
-    region            = RelationshipTo('Region', 'IS_IN_REGION')
+    country           = RelationshipTo('Country', 'IS_IN_COUNTRY', model= LocationRel)
+    region            = RelationshipTo('Region', 'IS_IN_REGION', model= LocationRel)
 
 
 class Arrondissement(LocationNode):
-    modelVersion      = StringProperty(required=True)
     codeType          = StringProperty(unique_index= False, required= False, default= 'code arrondissement')
     arrondissementCode   = StringProperty(unique_index=True, required=True)
     arrondissementName   = StringProperty(unique_index=True, required=True)
-    country           = RelationshipTo('Country', 'IS_IN_COUNTRY')
-    region            = RelationshipTo('Region', 'IS_IN_REGION')
-    departement       = RelationshipTo('Departement', 'IS_IN_DEPARTEMENT')
+    country           = RelationshipTo('Country', 'IS_IN_COUNTRY', model= LocationRel)
+    region            = RelationshipTo('Region', 'IS_IN_REGION', model= LocationRel)
+    departement       = RelationshipTo('Departement', 'IS_IN_DEPARTEMENT', model= LocationRel)
 
 
 class Canton(LocationNode):
-    modelVersion      = StringProperty(required=True)
     codeType          = StringProperty(unique_index= False, required= False, default= 'code canton')
     cantonCode        = StringProperty(unique_index=True, required=True)
     cantonName        = StringProperty(unique_index=True, required=True)
-    country           = RelationshipTo('Country', 'IS_IN_COUNTRY')
-    region            = RelationshipTo('Region', 'IS_IN_REGION')
-    departement       = RelationshipTo('Departement', 'IS_IN_DEPARTEMENT')
+    country           = RelationshipTo('Country', 'IS_IN_COUNTRY', model= LocationRel)
+    region            = RelationshipTo('Region', 'IS_IN_REGION', model= LocationRel)
+    departement       = RelationshipTo('Departement', 'IS_IN_DEPARTEMENT', model= LocationRel)
 
