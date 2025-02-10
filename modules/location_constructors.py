@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[2]:
+# In[22]:
 
 
 import pandas as pd
@@ -14,8 +14,10 @@ from pathlib import Path
 from unidecode import unidecode
 import requests
 from requests.exceptions import RequestException
-from datetime import date
+from datetime import date, datetime
+import pytz
 from dateutil import parser
+from loguru import logger
 
 from neo4j import GraphDatabase
 
@@ -40,8 +42,10 @@ from pynsee import get_file_list, download_file
 
 import eurostat 
 
+from loguru import logger
 
-# In[3]:
+
+# In[2]:
 
 
 if '__file__' not in globals():
@@ -51,9 +55,10 @@ from modules.neomodel_classes import *
 from modules.location_loaders import *
 
 
-# In[6]:
+# In[31]:
 
 
+@logger.catch
 def getCity(codes: dict) -> City | Cedex:
     """
     - codes : Code commune INSEE ou code postal, selon codeType, sous forme String
@@ -65,6 +70,7 @@ def getCity(codes: dict) -> City | Cedex:
     
     retourne un noeud City ou Cedex.
     """
+    node = None
     try:
         if codes['final'] == 'cedex':
             node = Cedex.nodes.get(code = codes[codes['final']])
@@ -76,28 +82,42 @@ def getCity(codes: dict) -> City | Cedex:
     except DoesNotExist:
         if codes['final'] == 'cedex':
             # on crée le noeud correspondant
-            node = Cedex(modelVersion = modelVersion, code = codes['cedex'], codeCedex = codes['cedex'], 
-                          codeType = codes['type']
+            logger.trace("Création Cedex {}", codes['cedex'])
+
+            node = Cedex(modelVersion = modelVersion,
+                         recordCreationDate = datetime.now(tz= pytz.timezone('CET')),
+                         recordLastUpdate   = datetime.now(tz= pytz.timezone('CET')),
+                         code = codes['cedex'], codeCedex = codes['cedex'], 
+                         codeType = codes['type']
                          ).save()
         elif codes['final'] == 'commune':
-            node = City(modelVersion = modelVersion, code = codes['commune'], codeCommune = codes['commune'],
+            logger.trace("Création Commune {} {}", codes['commune'], codes['commune_name'])
+
+            node = City(modelVersion = modelVersion,
+                        recordCreationDate = datetime.now(tz= pytz.timezone('CET')),
+                        recordLastUpdate   = datetime.now(tz= pytz.timezone('CET')),
+                        code = codes['commune'], codeCommune = codes['commune'],
                         postCode = codes['postal'], name = codes['commune_name'], cityName = codes['commune_name']
                        ).save()
         else:
             node = None
 
-    # pour finaliser la création du noeud : récupérer le noeud Departement ou créer le noeud Departement si non existant
-    departement = getDepartement(codes)
-    if departement is not None:
-        if node is not None:
-            node.departement.connect(departement)
+        # pour finaliser la création du noeud : récupérer le noeud Departement ou créer le noeud Departement si non existant
+        departement = getDepartement(codes)
+        if departement is not None:
+            if node is not None:
+                node.departement.connect(departement)
+
+    if node is not None:
+        node.save()
     
     return node
 
 
-# In[7]:
+# In[30]:
 
 
+@logger.catch
 def getRegionFromDepartement(code: str) -> (str, str):
     """
     Le code peut être un code postal, un code commune ou le numéro du département.
@@ -136,18 +156,24 @@ def getRegionFromDepartement(code: str) -> (str, str):
     else:
         try:
             region = session['df_departements'].loc[numDpt, 'REG']
-            region_name = session['df_regions'].loc[region, 'NCC']
+            try:
+                region_name = session['df_regions'].loc[region, 'NCC']
+            except KeyError:
+                logger.trace("Nom de région {} pas trouvé depuis le code département {}, code en entrée : {}",
+                             region, numDpt, code)
         except KeyError:
             # code département pas trouvé dans la table
+            logger.trace("Code département {} pas trouvé depuis le code département en entrée : {}", numDpt, code)
             region = '0'
             region_name = '0'
         
     return region, region_name
 
 
-# In[8]:
+# In[29]:
 
 
+@logger.catch
 def getArrondissement(codes: dict) -> Arrondissement:
     """
     - codes['code'] : code sur 3 ou 4 caractères, numérique, sauf 2Ax et 2Bx (Corse), 97xy (DROMs):
@@ -156,30 +182,39 @@ def getArrondissement(codes: dict) -> Arrondissement:
     retourne un objet Arrondissement.
     """
     if codes['arrondissement'] == '':
+        logger.trace("Code arrondissement non fourni : {}", codes)
         return None
-    
+
+    arrondissement = None
     # récupérer le noeud Arrondissement ou créer le noeud Arrondissement si non existant
     try:
         arrondissement = Arrondissement.nodes.get(arrondissementCode = codes['arrondissement'])
 
     except DoesNotExist:
-        # Arrondissement pas encore créée
+        # Arrondissement pas encore créé
+        logger.trace("Création Arrondissement {} {}", codes['arrondissement'], codes['arrondissement_name'])
+
         arrondissement = Arrondissement(modelVersion = modelVersion,
-                        code = codes['arrondissement'],
-                        name = codes['arrondissement_name'],
-                        arrondissementCode = codes['arrondissement'],
-                        arrondissementName = codes['arrondissement_name']).save()
+                                        recordCreationDate = datetime.now(tz= pytz.timezone('CET')),
+                                        recordLastUpdate   = datetime.now(tz= pytz.timezone('CET')),
+                                        code = codes['arrondissement'],
+                                        name = codes['arrondissement_name'],
+                                        arrondissementCode = codes['arrondissement'],
+                                        arrondissementName = codes['arrondissement_name']).save()
 
         departement = getDepartement(codes)
         if departement is not None:
-            arrondissement.departement.connect(departement)
-        
+            if arrondissement is not None:
+                arrondissement.departement.connect(departement)
+                arrondissement.save()
+
     return arrondissement
 
 
-# In[9]:
+# In[28]:
 
 
+@logger.catch
 def getCanton(codes: dict) -> Canton:
     """
     - codes['code'] : code sur 4 ou 5 caractères, numérique, sauf 2Axx et 2Bxx (Corse), 97xyy (DROMs):
@@ -188,15 +223,20 @@ def getCanton(codes: dict) -> Canton:
     retourne un objet Canton.
     """
     if codes['canton'] == '':
+        logger.trace("Code canton non fourni : {}", codes)
         return None
-    
+
+    canton = None
     # récupérer le noeud Canton ou créer le noeud Canton si non existant
     try:
         canton = Canton.nodes.get(cantonCode = codes['canton'])
 
     except DoesNotExist:
-        # Canton pas encore créée
+        # Canton pas encore créé
+        logger.trace("Création Canton {} {}", codes['canton'], codes['canton_name'])
         canton = Canton(modelVersion = modelVersion,
+                        recordCreationDate = datetime.now(tz= pytz.timezone('CET')),
+                        recordLastUpdate   = datetime.now(tz= pytz.timezone('CET')),
                         code = codes['canton'],
                         name = codes['canton_name'],
                         cantonCode = codes['canton'],
@@ -204,14 +244,17 @@ def getCanton(codes: dict) -> Canton:
 
         departement = getDepartement(codes)
         if departement is not None:
-            canton.departement.connect(departement)
-        
+            if canton is not None:
+                canton.departement.connect(departement)
+                canton.save()
+
     return canton
 
 
-# In[10]:
+# In[27]:
 
 
+@logger.catch
 def getDepartement(codes: dict) -> Departement:
     """
     - codes['code'] : code, sous forme String, selon dénomination :
@@ -224,15 +267,21 @@ def getDepartement(codes: dict) -> Departement:
     retourne un objet Departement.
     """
     if codes['departement'] == '':
+        logger.trace("Code département non fourni : {}", codes)
         return None
-    
+
+    departement = None
     # récupérer le noeud Departement ou créer le noeud Departement si non existant
     try:
         departement = Departement.nodes.get(departementCode = codes['departement'])
 
     except DoesNotExist:
-        # departement pas encore créée
+        # departement pas encore créé
+        logger.trace("Création Département {} {}", codes['departement'], codes['departement_name'])
+
         departement = Departement(modelVersion = modelVersion,
+                                  recordCreationDate = datetime.now(tz= pytz.timezone('CET')),
+                                  recordLastUpdate   = datetime.now(tz= pytz.timezone('CET')),
                                   code = codes['departement'],
                                   name = codes['departement_name'],
                                   departementCode = codes['departement'],
@@ -240,14 +289,17 @@ def getDepartement(codes: dict) -> Departement:
 
         region = getRegion(codes)
         if region is not None:
-            departement.region.connect(region)
-        
+            if departement is not None:
+                departement.region.connect(region)
+                departement.save()
+
     return departement
 
 
-# In[11]:
+# In[26]:
 
 
+@logger.catch
 def getRegion(codes: dict) -> Region:
     """
     - regionCode : code, sous forme String, selon dénomination :
@@ -261,28 +313,38 @@ def getRegion(codes: dict) -> Region:
     """
     # récupérer le noeud Region ou créer le noeud Region si non existant
     if codes['region'] == '':
+        logger.trace("Code région non fourni : {}", codes)
         return None
-    
+
+    region = None
     try:
         region = Region.nodes.get(regionCode = codes['region'])
 
     except DoesNotExist:
         # région pas encore créée
+        logger.trace("Création Région {} {}", codes['region'], codes['region_name'])
+
         region = Region(modelVersion = modelVersion,
+                        recordCreationDate = datetime.now(tz= pytz.timezone('CET')),
+                        recordLastUpdate   = datetime.now(tz= pytz.timezone('CET')),
                         code = codes['region'],
                         name = codes['region_name'],
                         regionCode = codes['region'],
                         regionName = codes['region_name']).save()
 
         country = getCountry(codes)     # par défaut on cherche en format ISO2
-        region.country.connect(country)
-        
+        if country is not None:
+            if region is not None:
+                region.country.connect(country)        
+                region.save()
+
     return region
 
 
-# In[12]:
+# In[25]:
 
 
+@logger.catch
 def getCountry(codes: dict, codeFormat: str = 'ISO2') -> Country:
     """
     - countryCode : code pays au format codeFormat (par défaut ISO2, autres valeurs 'ISO3', 'NUM')
@@ -291,9 +353,11 @@ def getCountry(codes: dict, codeFormat: str = 'ISO2') -> Country:
     """
     countryCode = codes['country']
     if countryCode == '':
+        logger.trace("Code pays non fourni : {}", codes)
         countryCode = 'FR'   # valeur par défaut
     
     # récupérer le noeud Country ou créer le noeud Country si non existant
+    country = None
     try:
         country = Country.nodes.get(countryCode = countryCode)
         
@@ -309,14 +373,19 @@ def getCountry(codes: dict, codeFormat: str = 'ISO2') -> Country:
             countryName = str(session['df_countries'].loc[countryCode, 'LIBCOG'])
 
         except KeyError:
+            logger.trace("Non de pays pas trouvé : {}", codes)
             countryName = 'unknown'
 
+        logger.trace("Création Pays {} {}", countryCode, countryName)
         country = Country(modelVersion = modelVersion,
+                          recordCreationDate = datetime.now(tz= pytz.timezone('CET')),
+                          recordLastUpdate   = datetime.now(tz= pytz.timezone('CET')),
                           codeFormat = codeFormat,
                           code = countryCode,
                           name = countryName,
                           countryCode = countryCode,
                           countryName = countryName
                          ).save()
+
     return country
 

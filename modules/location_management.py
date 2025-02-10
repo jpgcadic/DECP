@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[4]:
+# In[1]:
 
 
 import pandas as pd
@@ -16,6 +16,7 @@ import requests
 from requests.exceptions import RequestException
 from datetime import date
 from dateutil import parser
+from loguru import logger
 
 from neo4j import GraphDatabase
 
@@ -38,10 +39,12 @@ from pynsee.sirene import get_dimension_list, search_sirene, get_sirene_data, ge
 from pynsee.geodata import get_geodata_list, get_geodata
 from pynsee import get_file_list, download_file
 
-import eurostat 
+import eurostat
+
+from loguru import logger
 
 
-# In[7]:
+# In[3]:
 
 
 if '__file__' not in globals():
@@ -52,9 +55,10 @@ from modules.location_loaders import *
 from modules.location_constructors import getCity, getRegionFromDepartement, getArrondissement, getCanton, getDepartement, getRegion, getCountry
 
 
-# In[6]:
+# In[4]:
 
 
+@logger.catch
 def getDeliveryLocation(codes: dict) -> tuple[dict, (LocationNode | Cedex | City | Region | Country)]:
     """
     codes = {'code':  code du lieu, selon codeType,
@@ -91,14 +95,16 @@ def getDeliveryLocation(codes: dict) -> tuple[dict, (LocationNode | Cedex | City
             case 'country':
                 locationNode = getCountry(codes)
             case other:
+                logger.trace("Delivery location pas trouvée : {}", codes)
                 locationNode = None
 
     return codes, locationNode
 
 
-# In[2]:
+# In[5]:
 
 
+@logger.catch
 def getLocationCode(codes:dict) -> dict:
     """
     Renvoie les codes pays, region, departement, commune dans un dictionnaire :
@@ -150,18 +156,16 @@ def getLocationCode(codes:dict) -> dict:
                             # if codes['subtype'] not in ['commune', 'postal', 'cedex']:
                             if codes['final'] == '':
                                 # rien d'identifié, on pointe par défaut sur la région '0'
+                                logger.trace("Localisation pas trouvée : {}", codes)
                                 codes['type'] = 'code region'
                                 codes['subtype'] = 'default'
                                 codes['region'] = '0'
                                 codes['final'] = 'region'
 
-    # au bout du compte absolument rien d'identifié. on pointe par défaut sur la région '0'
-    if codes['final'] == '':
-        print(codes)
-
     return codes
 
 
+@logger.catch
 def checkCountryCode(codes: dict) -> dict:
     """
     Vérifie si le code est présent dans la table 'countries' sous l'une des formes:
@@ -204,6 +208,7 @@ def checkCountryCode(codes: dict) -> dict:
         codes['country'] = session['df_countries'][session['df_countries'].COG == codes['code'].upper()].index[0]
         codes['subtype'] = 'LIBCOG'
     else:
+        logger.trace("Code pays pas trouvé, code FR par défaut : {}", codes)
         codes['country'] = 'FR'       # par défaut on considère que c'est un code en France
         codes['type'] = 'code region' # on recherchera au niveau régional
         codes['region'] = '0'
@@ -212,6 +217,7 @@ def checkCountryCode(codes: dict) -> dict:
 
     return codes
 
+@logger.catch
 def checkRegionCode(codes: dict) -> dict:
     """
     codes = {'code': code, 'final': '', 'type': codeType, 'subtype': '', 'country': '', 'region': '', 'departement': '',
@@ -237,11 +243,14 @@ def checkRegionCode(codes: dict) -> dict:
             if codes['final'] == '':
                 codes = checkCustomCode(codes)
                 if codes['final'] == '':
+                    logger.trace("Code région pas trouvé : {}", codes)
                     codes['region'] = ''
                     codes['region_name'] = ''
+
         
     return codes
 
+@logger.catch
 def checkDepartementCode(codes: dict) -> dict:
     """
     en pratique on retrouve sous le type 'code departement' tous les types de localisations : pays, région, 
@@ -328,12 +337,14 @@ def checkDepartementCode(codes: dict) -> dict:
             else:
                 codes = checkNutsCode(codes)
     else:
+        logger.trace("Code département pas trouvé : {}", codes)
         for ix in ['final', 'subtype', 'departement', 'departement_name', 'region', 'region_name']:
-                codes[ix] = ''
+            codes[ix] = ''
 
     return codes
 
 
+@logger.catch
 def isCommuneCodeFormat(codes: dict) -> bool:
     """
     Renvoie False si longueur de codes['code'] != 5
@@ -351,6 +362,7 @@ def isCommuneCodeFormat(codes: dict) -> bool:
     return ret
 
 
+@logger.catch
 def checkNutsCode(codes: dict) -> dict:
     """
     vérifie si le code est un code NUTS3 (5 digits) ou NUTS 2 (4 digits) (de la forme FRxy[z] pour la France)
@@ -362,6 +374,7 @@ def checkNutsCode(codes: dict) -> dict:
     """
     if len(codes['code']) < 3:
         # sinon code = code pays et risque de confusion
+        logger.trace("Code Nuts inférieur à 3 caractères : {}", codes)
         return codes
 
     codeFound = '0'
@@ -403,9 +416,11 @@ def checkNutsCode(codes: dict) -> dict:
     except (KeyError, IndexError):
         # code NUTS inconnu
         # on indique que pas trouvé
+        logger.trace("Code NUTS pas trouvé : {}", codes)
         codes['subtype'] = 'unknown'
         codes['final'] = ''
         codes['country'] = 'FR' # valeur par défaut
+
 
     # dans tous les cas on efface les entrées cedex et commune.
     codes['cedex'] = ''
@@ -415,6 +430,7 @@ def checkNutsCode(codes: dict) -> dict:
     return codes
 
 
+@logger.catch
 def checkIsoCode(codes: dict) -> dict:
     """
     vérifie si le code est un code ISO 3166 (de la forme FR-xy[z] pour la France)
@@ -474,8 +490,8 @@ def checkIsoCode(codes: dict) -> dict:
                 codes['departement'] = codes['departement'].zfill(max(2, len(codes['departement'])))
 
             case _:
-                print('XXXXXXXXXX type non trouvé XXXXXXXX', isoType, codes['code'])
-                
+                logger.trace("Type de code ISO pas trouvé : {} {}", isoType, codes)
+
         
         if isoType in ["departement metropolitain", "collectivite departementale d'outre-mer",
                        "collectivite territoriale unique d'outre-mer", "collectivite d'outre-mer",
@@ -494,6 +510,7 @@ def checkIsoCode(codes: dict) -> dict:
     except KeyError:
         # le code n'est pas ISO 3166-2
         # on indique que pas trouvé
+        logger.trace("Code ISO pas trouvé : {}", codes)
         codes['subtype'] = 'unknown'
         codes['final'] = ''
         codes['country'] = 'FR' # valeur par défaut
@@ -506,6 +523,7 @@ def checkIsoCode(codes: dict) -> dict:
     return codes
 
 
+@logger.catch
 def checkCommuneOrPostalCode(codes: dict) -> dict:
     """
     Si le code n'est pas dans un format vraisemblable on ne fait rien. 
@@ -533,12 +551,14 @@ def checkCommuneOrPostalCode(codes: dict) -> dict:
             
         elif codeType in ['code departement', 'code region', 'code pays', 'code canton', 'code arrondissement']:
             # cas où le type de code est incorrectement renseigné dans le dataframe decp
+            logger.trace("Code commune ou code postal probablement mal renseigné dans la source : {}", codes)
             codes = checkCommuneCode(codes)
             if codes['final'] not in ['commune', 'cedex']:
                 codes = checkPostalCode(codes)
                 
         else:
             # pas prévu
+            logger.trace("Type de code non prévu : {}", codes)
             codes['cedex'] = ''
             codes['postal'] = ''
             codes['commune'] = ''
@@ -548,6 +568,7 @@ def checkCommuneOrPostalCode(codes: dict) -> dict:
     return codes
     
 
+@logger.catch
 def checkCommuneCode(codes: dict) -> dict:
     """
     """
@@ -608,6 +629,7 @@ def checkCommuneCode(codes: dict) -> dict:
                 else:
                     # le code n'est ni dans la base commune ni dans la base des codes postaux
                     # on considère que c'est un code cedex
+                    logger.trace("Code considéré comme CEDEX : {}", codes)
                     codes['type'] = 'cedex'
                     codes['cedex'] = codes['code']
                     codes['postal'] = ''
@@ -626,6 +648,7 @@ def checkCommuneCode(codes: dict) -> dict:
     return codes
 
 
+@logger.catch
 def checkPostalCode(codes: dict) -> dict:
     """
     """
@@ -682,6 +705,7 @@ def checkPostalCode(codes: dict) -> dict:
                     codes['postal'] =''
             except KeyError:
                 # on considère qu'il s'agit d'un cedex
+                logger.trace("Code considéré come CEDEX : {}", codes)
                 codes['type'] = 'cedex'
                 codes['cedex'] = codes['code']
                 codes['postal'] = ''
@@ -703,9 +727,10 @@ def checkPostalCode(codes: dict) -> dict:
 
     return codes
 
+@logger.catch
 def checkCustomCode(codes: dict) -> dict:
     """
-    vérifie si le code est un spécification non normalisée.
+    vérifie si le code est une spécification non normalisée.
     En entrée le code à contrôler est dans l'entrée 'code' du dictionnaire codes
     Renvoie les codes pays, region, departement, commune dans un dictionnaire :
     codes = {'code': code, 'final': '', 'type': codeType, 'country': '', 'region': '', 'departement': '',
@@ -743,6 +768,7 @@ def checkCustomCode(codes: dict) -> dict:
         codes['final'] = 'region'
     
     else:
+        logger.trace("Code absent de la base Regions : {}", codes)
         # on regarde si le code n'est pas un suffixe d'une codification ISO (ex: 'HDF' pour 'FR-HDF') 
         codes['code'] = 'FR-' + codes['code']
         codes = checkIsoCode(codes)
@@ -761,6 +787,7 @@ def checkCustomCode(codes: dict) -> dict:
                 # le code reconstitué n'est pas ISO 3166-2, on remet l'ancien
                 codes['code'] = codeSave
             if codes['final'] == '':
+                logger.trace("Recherche si le code est un nom de commune : {}", codes)
                 # on regarde si ce n'est pas le nom d'une commune dans la base communes, ou sinon dans la base codes postaux
                 codes['final'] = 'commune'  # soyons optimistes
                 try:
@@ -780,6 +807,7 @@ def checkCustomCode(codes: dict) -> dict:
                 else:
                     # on regarde dans la base des codes postaux, indexée suivant le code commune
                     # car 1 code postal renvoie souvent à plusieurs communes
+                    logger.trace("Recherche si le code est un nom dans la base des codes postaux : {}", codes)
                     try:
                         if isinstance(session['df_commune2post'], pd.DataFrame): pass
                     except KeyError:
@@ -791,11 +819,13 @@ def checkCustomCode(codes: dict) -> dict:
                     else:
                         # ce n'est pas un nom de commune
                         # par défaut on prend le numéro de commune de l'acheteur
+                        logger.trace("Code pas un nom de commune, remplacé par le code commune de l'acheteur : {}", codes)
                         if isCommuneCodeFormat({'code': codes['communeBuyer']}):
                             codes['code'] = codes['communeBuyer']
                             codes = checkCommuneCode(codes)
                         else:
                             # on indique qu'aucun résultat n'a été trouvé 
+                            logger.trace("Aucun résultat trouvé : {}", codes)
                             codes['final'] = ''
                             codes['subtype'] = ''
                             codes['country'] = 'FR' # valeur par défaut
@@ -828,6 +858,7 @@ def checkCustomCode(codes: dict) -> dict:
     return codes
 
 
+@logger.catch
 def checkArrondissementCode(codes: dict) -> dict:
     """
     """
@@ -875,6 +906,7 @@ def checkArrondissementCode(codes: dict) -> dict:
                 codes['departement_name'] = ''
             
         except KeyError:
+            logger.trace("Code arrondissement pas trouvé : {}", codes)
             for ix in ['final', 'subtype', 'departement', 'departement_name', 'region', 'region_name',
                        'canton_name', 'canton']:
                 codes[ix] = ''
@@ -885,6 +917,7 @@ def checkArrondissementCode(codes: dict) -> dict:
     return codes
 
 
+@logger.catch
 def checkCantonCode(codes: dict) -> dict:
     """
     code canton sur 4 digits, ou 5 pour les DROM commençant par 97
@@ -927,12 +960,15 @@ def checkCantonCode(codes: dict) -> dict:
                 try:
                     codes['region_name'] = session['df_regions'].loc[codes['region'], 'NCC']
                 except KeyError:
+                    logger.trace("Nom de la région du canton pas trouvé : {}", codes)
                     codes['region_name'] = ''
 
             except KeyError:
+                logger.trace("Nom du département du canton pas trouvé : {}", codes)
                 codes['departement_name'] = ''
 
         except KeyError:
+            logger.trace("Canton pas trouvé : {}", codes)                 
             for ix in ['final', 'subtype', 'departement', 'departement_name', 'region', 'region_name',
                        'canton_name', 'canton']:
                 codes[ix] = ''
