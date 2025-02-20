@@ -17,10 +17,10 @@ from neomodel.integration.numpy import to_ndarray
 
 
 
-# In[2]:
+# In[3]:
 
 
-modelVersion = '1.0.1'
+modelVersion = '1.0.2'
 
 class CommonRecordProperty:
     recordCreationDate = DateTimeFormatProperty(index= True, format="%Y-%m-%d %H:%M:%S")
@@ -82,7 +82,7 @@ class Enterprise(StructuredNode, CommonRecordProperty):
 
 
 class Buyer(StructuredNode, CommonRecordProperty):
-    buyerId         = StringProperty(unique_index=False, required=True)
+    buyerId         = StringProperty(unique_index=True, required=True)
     buyerSiren      = StringProperty(unique_index=False, required=True)
     buyerSite       = StringProperty(unique_index=False, required=True)
     buyerName       = StringProperty(unique_index=False, required=False)
@@ -147,6 +147,7 @@ class LocationNode(StructuredNode, CommonRecordProperty):
     code          = StringProperty(unique_index=False, required=True)
     codeType      = StringProperty(unique_index=False, required=True, choices= codeTypes)
     name          = StringProperty(unique_index=False, required=False)
+    nameOrigin    = StringProperty(unique_index=False, required=False)
 
 
 class Address(LocationNode):
