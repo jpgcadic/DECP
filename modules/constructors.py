@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[24]:
+# In[2]:
 
 
 import pandas as pd
@@ -45,7 +45,7 @@ import eurostat
 import json
 
 
-# In[2]:
+# In[ ]:
 
 
 if '__file__' not in globals():
@@ -55,9 +55,10 @@ from modules.config import *
 from modules.neomodel_classes import *
 from modules.location_management import getDeliveryLocation, getLocationCode
 from modules.location_constructors import getCity, getRegionFromDepartement
+from modules.utils import checkEnterprises
 
 
-# In[32]:
+# In[15]:
 
 
 def addBuyer(siretBuyer: str, buyerName: str, buyerLegalName: str):
@@ -102,7 +103,7 @@ def addBuyer(siretBuyer: str, buyerName: str, buyerLegalName: str):
     return buyer
 
 
-# In[26]:
+# In[25]:
 
 
 @logger.catch
@@ -115,6 +116,8 @@ def addContract(contract: pd.Series):
     col1 = ['titulaire_denominationSociale_1', 'titulaire_denominationSociale_2', 'titulaire_denominationSociale_3']
     col2 = ['titulaire_typeIdentifiant_1', 'titulaire_typeIdentifiant_2', 'titulaire_typeIdentifiant_3']
 
+    idsBuyer = {'acheteur.id': 'acheteur.nom'}
+
     titulaires = pd.concat([contract[col0].reset_index(drop= True),
                            contract[col1].reset_index(drop= True),
                            contract[col2].reset_index(drop= True),
@@ -126,7 +129,11 @@ def addContract(contract: pd.Series):
     # création des titulaires
     titulaires = titulaires[titulaires.SIRET.notna()]   # on ne conserve que les valeurs renseignées
 
-    titulaires = titulaires.apply(addEnterprise, axis= 1)
+    if not titulaires.empty:
+        titulaires = titulaires.apply(addEnterprise, axis= 1)
+    else:
+        # aucune entreprise identifiable. on ne crée rien.
+        return None
 
     # création des noeuds sièges si distincts des titulaires
     sieges = titulaires[titulaires.SIRET_SIEGE.notna()]
@@ -145,6 +152,10 @@ def addContract(contract: pd.Series):
         contractNode = Contract.nodes.get(key = contractKey)
         
     except DoesNotExist:
+
+        # correction du champ montant le cas échéant
+        montant = 0 if contract.isna().montant else contract.montant
+        
         if contract[col0].notna().sum() > 1:
             # Les noeuds ainsi créés auront 2 labels : 'Contract' et 'MultiPartyContract'
             logger.trace("Création Contrat partenariat {}", contractKey)
@@ -157,7 +168,7 @@ def addContract(contract: pd.Series):
                                               day   = int(parser.parse(contract.dateNotification, fuzzy= True).day),
                                               objet = contract.objet,
                                               procedure = contract.procedure,
-                                              montant = contract.montant
+                                              montant = montant
                                              ).save()
         else:
             logger.trace("Création Contrat {}", contractKey)
@@ -169,7 +180,7 @@ def addContract(contract: pd.Series):
                                     day   = int(parser.parse(contract.dateNotification, fuzzy= True).day),
                                     objet = contract.objet,
                                     procedure = contract.procedure,
-                                    montant = contract.montant
+                                    montant = montant
                                    ).save()
 
         # connexion des entreprises au noeud contrat
@@ -265,7 +276,26 @@ def addContract(contract: pd.Series):
 
         except AttributeError:
             pass
-
+        try:
+            buyerLegalName = buyer.buyerLegalName
+        except AttributeError:
+            # noeud ancienne version
+            contract = checkEnterprises(contract, idsBuyer)
+            if not contract.isna().siret:
+                dfBuyer = search_sirene(variable = ['siret'], number= 1,
+                                        pattern = [siretBuyer], phonetic_search = False, legal=True, closed=True)
+                # cette API peut renvoyer plusieurs lignes pour un même SIRET, même si number= 1.
+                # on ne conserve que la première ligne retournée, en conservant néanmoins le format dataframe.
+                dfBuyer = dfBuyer.iloc[0, :]
+                dfBuyer = dfBuyer.to_frame().transpose()
+                buyerLegalName = str(*dfBuyer.denominationUniteLegale)
+                if dfBuyer.isna().denominationUniteLegale.all():
+                    buyerLegalName = 'not populated in SIRENE'
+                buyer.buyerLegalName = buyerLegalName
+            else:
+                buyerLegalName = buyerName + ' : unknown in SIRENE'
+                dfBuyer = None
+                
     except DoesNotExist:
         # on crée le noeud ainsi que ses relations siège et localisation
         # traitement du cas où l'identité de l'acheteur n'est pas renseignée.
@@ -325,7 +355,7 @@ def addContract(contract: pd.Series):
 
         if dfBuyer is not None:
             codes = {'code': dfBuyer.codeCommuneEtablissement.values.all(),
-                     'type': 'code commune', 
+                     'type': 'code commune',
                      'nom': '',
                      'communeBuyer': dfBuyer.codeCommuneEtablissement.values.all(),
                      'final': '', 'subtype': '', 'country': '', 'region': '', 'departement': '', 'commune': '', 'postal': '',
@@ -354,7 +384,7 @@ def addContract(contract: pd.Series):
 
     codes = {'code': contract['lieuExecution.code'],
              'type': unidecode(str(contract['lieuExecution.typeCode']).lower()), 
-             'nom': contract['lieuExecution.nom'],
+             'nom': str(contract['lieuExecution.nom']),
              'communeBuyer': communeBuyer,
              'final': '', 'subtype': '', 'country': '', 'region': '', 'departement': '', 'commune': '', 'postal': '',
              'cedex': '', 'canton': '', 'arrondissement': ''}
@@ -371,7 +401,7 @@ def addContract(contract: pd.Series):
     return contractNode
 
 
-# In[34]:
+# In[24]:
 
 
 @logger.catch
@@ -545,7 +575,7 @@ def updateContract(contract: pd.Series, cols= None, key= 'old'):
     
             if dfBuyer is not None:
                 codes = {'code': dfBuyer.codeCommuneEtablissement.values.all(),
-                         'type': 'code commune', 
+                         'type': 'code commune',
                          'nom': '',
                          'communeBuyer': dfBuyer.codeCommuneEtablissement.values.all(),
                          'final': '', 'subtype': '', 'country': '', 'region': '', 'departement': '', 'commune': '', 'postal': '',
@@ -574,7 +604,7 @@ def updateContract(contract: pd.Series, cols= None, key= 'old'):
     
         codes = {'code': contract['lieuExecution.code'],
                  'type': unidecode(str(contract['lieuExecution.typeCode']).lower()), 
-                 'nom': contract['lieuExecution.nom'],
+                 'nom': str(contract['lieuExecution.nom']),
                  'communeBuyer': communeBuyer,
                  'final': '', 'subtype': '', 'country': '', 'region': '', 'departement': '', 'commune': '', 'postal': '',
                  'cedex': '', 'canton': '', 'arrondissement': ''}
@@ -596,7 +626,7 @@ def updateContract(contract: pd.Series, cols= None, key= 'old'):
     return contractNode
 
 
-# In[20]:
+# In[23]:
 
 
 @logger.catch
@@ -608,7 +638,7 @@ def addEnterprise(titulaire: pd.Series) -> pd.Series:
     retour : Series titulaire, avec noeud existant ou créé renseigné dans la colonne 'NODE'.
     """
 
-    siret = titulaire.SIRET
+    siret = str(titulaire.SIRET)
     if siret.find('.') != -1:
         # la chaîne de caractères supposée représenter le numéro contient un point, probablement conversion erronée en float
         siret = siret.split('.')[0]
@@ -648,7 +678,7 @@ def addEnterprise(titulaire: pd.Series) -> pd.Series:
     return titulaire
 
 
-# In[27]:
+# In[22]:
 
 
 def addEnterpriseWithSiret(sirenId: str, typeId: str= 'SIRET', originalDS= ''):
@@ -656,132 +686,143 @@ def addEnterpriseWithSiret(sirenId: str, typeId: str= 'SIRET', originalDS= ''):
     """
     
     # récupérer les informations SIRENE sur la base du SIRET
-    var = typeId.lower()
+    var = str(typeId).lower()
+    if var not in ['siret', 'siren']:
+        logger.trace("Type identifiant invalide : {} pour {}", typeId, sirenId)
     try:
         df = search_sirene(variable = [var], number= 1,
                            pattern = [sirenId], phonetic_search = False, legal=True, closed=True)
-        # cette API peut renvoyer plusieurs lignes pour un même SIRET, même si number= 1.
-        # on ne conserve que la première ligne retournée, en conservant néanmoins le format dataframe.
-        df = df.iloc[0, :]
-        df = df.to_frame().transpose()
-        
-        # application de quelques règles de gestion sur les attributs restitués par l'API SIRENE
-        # si personne physique :
-        if df['denominationUniteLegale'].values == None:
-            if df['nomUsageUniteLegale'].values == None:
-                nom = str(*df['nomUniteLegale'])
-            else:
-                nom = str(*df['nomUsageUniteLegale'])
-            civilite = ''
-            if df['sexeUniteLegale'].values is not None:
-                if df['sexeUniteLegale'].values == 'M':
-                    civilite = 'M.'
-                else:
-                    civilite = 'Mme.'
-            prenom = ''
-            if df['prenomUsuelUniteLegale'].values is not None:
-                prenom = df['prenomUsuelUniteLegale'].values
-            denominationUniteLegale = civilite + prenom + nom
-            
-        else:
-            denominationUniteLegale = str(*df['denominationUniteLegale'])
-            
-        # création du noeud Enterprise avec les informations minimales
-        logger.trace("Création Entreprise {} {}, denomination sociale originale = {}",
-                     df.siret[0], denominationUniteLegale, originalDS)
-
-        enterprise = Enterprise(modelVersion = modelVersion,
-                                recordCreationDate = datetime.now(tz= pytz.timezone('CET')),
-                                titulaireId= df.siret[0],
-                                titulaireSiren = df.siren[0],
-                                titulaireSite =  df.nic[0],
-                                titulaireTypeIdentifiant = typeId,
-                                titulaireDenominationSociale = denominationUniteLegale,
-                                titulaireDenominationOriginale = originalDS,
-                                isSiege = df.etablissementSiege.all()
-                               ).save()
-
-        # on ne conserve ensuite que les informations effectivement renseignées
-        df = df.dropna(axis= 'columns')
-        cols = df.columns
-
-        # enregistrement des informations optionnelles
-        for col in cols:
-            match col:
-                case 'dateDebut'                           : enterprise.dateDebut = parser.parse(*df[col], fuzzy= True)
-                case 'dateCreationEtablissement'           :
-                    enterprise.dateCreationEtablissement = parser.parse(*df[col], fuzzy= True)
-                case 'dateCreationUniteLegale'             :
-                    enterprise.dateCreationUniteLegale = parser.parse(*df[col], fuzzy= True)
-                case 'dateFin'                             : enterprise.dateFin = parser.parse(*df[col], fuzzy= True)                        ,
-                # ligne suivante supprimée, incohérent avec traitement effectué précédemment 
-                # case 'denominationUniteLegale'             : enterprise.denominationUniteLegale = str(*df[col])
-                # 
-                case 'nicSiegeUniteLegale'                 : enterprise.nicSiegeUniteLegale = str(*df[col])
-                case 'categorieEntreprise'                 : enterprise.categorieEntreprise = str(*df[col])
-                case 'categorieJuridiqueUniteLegale'       : enterprise.categorieJuridiqueUniteLegale = str(*df[col])
-                case 'categorieJuridiqueUniteLegaleLibelle':
-                    enterprise.categorieJuridiqueUniteLegaleLibelle = str(*df[col])
-                case 'activitePrincipaleUniteLegale'       : enterprise.activitePrincipaleUniteLegale = str(*df[col])
-                case 'activitePrincipaleUniteLegaleLibelle':
-                    enterprise.activitePrincipaleUniteLegaleLibelle = str(*df[col])
-                case 'activitePrincipaleEtablissement'     : enterprise.activitePrincipaleEtablissement = str(*df[col])
-                case 'activitePrincipaleEtablissementLibelle':
-                    enterprise.activitePrincipaleEtablissementLibelle = str(*df[col])
-                case 'numeroVoieEtablissement'             : enterprise.numeroVoieEtablissement = str(*df[col])
-                case 'typeVoieEtablissement'               : enterprise.typeVoieEtablissement = str(*df[col])
-                case 'typeVoieEtablissementLibelle'        : enterprise.typeVoieEtablissementLibelle = str(*df[col])
-                case 'libelleVoieEtablissement'            : enterprise.libelleVoieEtablissement = str(*df[col])
-                case 'codePostalEtablissement'             : enterprise.codePostalEtablissement = str(*df[col])
-                case 'libelleCommuneEtablissement'         : enterprise.libelleCommuneEtablissement = str(*df[col])
-                case 'codeCommuneEtablissement'            : enterprise.codeCommuneEtablissement = str(*df[col])
-                case 'statutDiffusionEtablissement'        : enterprise.statutDiffusionEtablissement = str(*df[col])
-                case 'trancheEffectifsEtablissement'       : enterprise.trancheEffectifsEtablissement = str(*df[col])
-                case 'anneeEffectifsEtablissement'         : enterprise.anneeEffectifsEtablissement = str(*df[col])
-                case 'activitePrincipaleRegistreMetiersEtablissement':
-                    enterprise.activitePrincipaleRegistreMetiersEtablissement = str(*df[col])
-                case 'trancheEffectifsUniteLegale'         : enterprise.trancheEffectifsUniteLegale = str(*df[col])
-                case 'effectifsMinUniteLegale'             : enterprise.effectifsMinUniteLegale = float(*df[col])
-                case 'effectifsMaxUniteLegale'             : enterprise.effectifsMaxUniteLegale = float(*df[col])
-                case 'anneeEffectifsUniteLegale'           : enterprise.anneeEffectifsUniteLegale = str(*df[col])
-                case 'anneeCategorieEntreprise'            : enterprise.anneeCategorieEntreprise = str(*df[col])
-                case _                                     : pass
-
-        enterprise.recordLastUpdate = datetime.now(tz= pytz.timezone('CET'))
-        enterprise.save()
-
-        # récupération du noeud City ou création du noeud City si non existant
-        if enterprise.codeCommuneEtablissement is not None:
-            codes = {'code': str(enterprise.codeCommuneEtablissement), 'final': 'commune',
-                     'type': 'code commune', 'subtype': '', 'country': '', 'region': '', 'departement': '',
-                     'commune': str(enterprise.codeCommuneEtablissement), 'postal': '', 'cedex': ''}
-
-            codes = getLocationCode(codes)
-            city = getCity(codes)  # city peut être un noeud City ou Cedex, sous-classes de LocationNode
-            if city is not None:
-                enterprise.enterpriseLocation.connect(city) # création de la relation avec city
-
     except RequestException:
-        # pas trouvé dans le répertoire SIRENE
-        # création du noeud avec informations minimales, le site est considéré siège par défaut
-        # il n'est pas rattaché à une localisation.
-        enterprise = Enterprise(modelVersion = modelVersion,
-                                recordCreationDate = datetime.now(tz= pytz.timezone('CET')),
-                                recordLastUpdate   = datetime.now(tz= pytz.timezone('CET')),
-                                titulaireId= sirenId if typeId.lower() == 'siret' else sirenId + '00000',
-                                titulaireSiren = sirenId[0:9],
-                                titulaireSite =  sirenId[9:14],
-                                titulaireDenominationSociale = 'not known in SIRENE',
-                                titulaireDenominationOriginale = originalDS,
-                                titulaireTypeIdentifiant = typeId,
-                                isSiege = True).save()
+        try:
+            # on cherche avec le numéro SIREN
+            df = search_sirene(variable = ['siren'], number= 1,
+                               pattern = [sirenId[0:9]], phonetic_search = False, legal=True, closed=True)
+            # trouvé avec le numéro SIREN
+        except RequestException:
+            # décidément pas trouvé
+            # création du noeud avec informations minimales, le site est considéré siège par défaut
+            # il n'est pas rattaché à une localisation.
+            enterprise = Enterprise(modelVersion = modelVersion,
+                                    recordCreationDate = datetime.now(tz= pytz.timezone('CET')),
+                                    recordLastUpdate   = datetime.now(tz= pytz.timezone('CET')),
+                                    titulaireId= sirenId if typeId.lower() == 'siret' else sirenId + '00000',
+                                    titulaireSiren = sirenId[0:9],
+                                    titulaireSite =  sirenId[9:14],
+                                    titulaireDenominationSociale = 'not known in SIRENE',
+                                    titulaireDenominationOriginale = originalDS,
+                                    titulaireTypeIdentifiant = typeId,
+                                    isSiege = True).save()
+            return enterprise
+        
+    # à ce point on a identifié l'entreprise avec son numéro SIRET ou SIREN
+    # l'API SIRENE peut renvoyer plusieurs lignes pour un même SIRET, même si number= 1.
+    # on ne conserve que la première ligne retournée, en conservant néanmoins le format dataframe.
+    df = df.iloc[0, :]
+    df = df.to_frame().transpose()
+        
+    # application de quelques règles de gestion sur les attributs restitués par l'API SIRENE
+    # si personne physique :
+    if df['denominationUniteLegale'].values == None:
+        if df['nomUsageUniteLegale'].values == None:
+            nom = str(*df['nomUniteLegale'])
+        else:
+            nom = str(*df['nomUsageUniteLegale'])
+        civilite = ''
+        if df['sexeUniteLegale'].values is not None:
+            if df['sexeUniteLegale'].values == 'M':
+                civilite = 'M.'
+            else:
+                civilite = 'Mme.'
+        prenom = ''
+        if df['prenomUsuelUniteLegale'].values is not None:
+            prenom = df['prenomUsuelUniteLegale'].values
+        denominationUniteLegale = civilite + prenom + nom
+        
+    else:
+        denominationUniteLegale = str(*df['denominationUniteLegale'])
+        
+    # création du noeud Enterprise avec les informations minimales
+    logger.trace("Création Entreprise {} {}, denomination sociale originale = {}",
+                 df.siret[0], denominationUniteLegale, originalDS)
+
+    enterprise = Enterprise(modelVersion = modelVersion,
+                            recordCreationDate = datetime.now(tz= pytz.timezone('CET')),
+                            titulaireId= df.siret[0],
+                            titulaireSiren = df.siren[0],
+                            titulaireSite =  df.nic[0],
+                            titulaireTypeIdentifiant = typeId,
+                            titulaireDenominationSociale = denominationUniteLegale,
+                            titulaireDenominationOriginale = originalDS,
+                            isSiege = df.etablissementSiege.all()
+                           ).save()
+
+    # on ne conserve ensuite que les informations effectivement renseignées
+    df = df.dropna(axis= 'columns')
+    cols = df.columns
+
+    # enregistrement des informations optionnelles
+    for col in cols:
+        match col:
+            case 'dateDebut'                           : enterprise.dateDebut = parser.parse(*df[col], fuzzy= True)
+            case 'dateCreationEtablissement'           :
+                enterprise.dateCreationEtablissement = parser.parse(*df[col], fuzzy= True)
+            case 'dateCreationUniteLegale'             :
+                enterprise.dateCreationUniteLegale = parser.parse(*df[col], fuzzy= True)
+            case 'dateFin'                             : enterprise.dateFin = parser.parse(*df[col], fuzzy= True)                        ,
+            # ligne suivante supprimée, incohérent avec traitement effectué précédemment 
+            # case 'denominationUniteLegale'             : enterprise.denominationUniteLegale = str(*df[col])
+            # 
+            case 'nicSiegeUniteLegale'                 : enterprise.nicSiegeUniteLegale = str(*df[col])
+            case 'categorieEntreprise'                 : enterprise.categorieEntreprise = str(*df[col])
+            case 'categorieJuridiqueUniteLegale'       : enterprise.categorieJuridiqueUniteLegale = str(*df[col])
+            case 'categorieJuridiqueUniteLegaleLibelle':
+                enterprise.categorieJuridiqueUniteLegaleLibelle = str(*df[col])
+            case 'activitePrincipaleUniteLegale'       : enterprise.activitePrincipaleUniteLegale = str(*df[col])
+            case 'activitePrincipaleUniteLegaleLibelle':
+                enterprise.activitePrincipaleUniteLegaleLibelle = str(*df[col])
+            case 'activitePrincipaleEtablissement'     : enterprise.activitePrincipaleEtablissement = str(*df[col])
+            case 'activitePrincipaleEtablissementLibelle':
+                enterprise.activitePrincipaleEtablissementLibelle = str(*df[col])
+            case 'numeroVoieEtablissement'             : enterprise.numeroVoieEtablissement = str(*df[col])
+            case 'typeVoieEtablissement'               : enterprise.typeVoieEtablissement = str(*df[col])
+            case 'typeVoieEtablissementLibelle'        : enterprise.typeVoieEtablissementLibelle = str(*df[col])
+            case 'libelleVoieEtablissement'            : enterprise.libelleVoieEtablissement = str(*df[col])
+            case 'codePostalEtablissement'             : enterprise.codePostalEtablissement = str(*df[col])
+            case 'libelleCommuneEtablissement'         : enterprise.libelleCommuneEtablissement = str(*df[col])
+            case 'codeCommuneEtablissement'            : enterprise.codeCommuneEtablissement = str(*df[col])
+            case 'statutDiffusionEtablissement'        : enterprise.statutDiffusionEtablissement = str(*df[col])
+            case 'trancheEffectifsEtablissement'       : enterprise.trancheEffectifsEtablissement = str(*df[col])
+            case 'anneeEffectifsEtablissement'         : enterprise.anneeEffectifsEtablissement = str(*df[col])
+            case 'activitePrincipaleRegistreMetiersEtablissement':
+                enterprise.activitePrincipaleRegistreMetiersEtablissement = str(*df[col])
+            case 'trancheEffectifsUniteLegale'         : enterprise.trancheEffectifsUniteLegale = str(*df[col])
+            case 'effectifsMinUniteLegale'             : enterprise.effectifsMinUniteLegale = float(*df[col])
+            case 'effectifsMaxUniteLegale'             : enterprise.effectifsMaxUniteLegale = float(*df[col])
+            case 'anneeEffectifsUniteLegale'           : enterprise.anneeEffectifsUniteLegale = str(*df[col])
+            case 'anneeCategorieEntreprise'            : enterprise.anneeCategorieEntreprise = str(*df[col])
+            case _                                     : pass
+
+    enterprise.recordLastUpdate = datetime.now(tz= pytz.timezone('CET'))
+    enterprise.save()
+
+    # récupération du noeud City ou création du noeud City si non existant
+    if enterprise.codeCommuneEtablissement is not None:
+        codes = {'code': str(enterprise.codeCommuneEtablissement), 'final': 'commune',
+                 'type': 'code commune', 'subtype': '', 'country': '', 'region': '', 'departement': '',
+                 'nom' : '',
+                 'commune': str(enterprise.codeCommuneEtablissement), 'postal': '', 'cedex': ''}
+
+        codes = getLocationCode(codes)
+        city = getCity(codes)  # city peut être un noeud City ou Cedex, sous-classes de LocationNode
+        if city is not None:
+            enterprise.enterpriseLocation.connect(city) # création de la relation avec city
 
     enterprise.save()
     
     return enterprise
 
 
-# In[17]:
+# In[10]:
 
 
 def updatePartnershipContractNode(contract: pd.Series):
@@ -910,7 +951,7 @@ def updatePartnershipContractNode(contract: pd.Series):
     return contract
 
 
-# In[18]:
+# In[9]:
 
 
 def reconnectEnterprises(contract: pd.Series):
@@ -942,7 +983,7 @@ def reconnectEnterprises(contract: pd.Series):
     return contract
 
 
-# In[1]:
+# In[21]:
 
 
 def updateBuyer(buyer):
@@ -993,7 +1034,7 @@ def updateBuyer(buyer):
 
         if dfBuyer is not None:
             codes = {'code': dfBuyer.codeCommuneEtablissement.values.all(),
-                     'type': 'code commune', 
+                     'type': 'code commune',
                      'nom': '',
                      'communeBuyer': dfBuyer.codeCommuneEtablissement.values.all(),
                      'final': '', 'subtype': '', 'country': '', 'region': '', 'departement': '', 'commune': '', 'postal': '',
@@ -1021,7 +1062,7 @@ def updateBuyer(buyer):
         buyer.save()
 
 
-# In[ ]:
+# In[7]:
 
 
 def refactorSite(dictId, pattern):
