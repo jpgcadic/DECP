@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[8]:
+# In[1]:
 
 
 import pandas as pd
@@ -20,7 +20,7 @@ if '__file__' not in globals():
 from modules.config import *
 
 
-# In[9]:
+# In[3]:
 
 
 def loadDecpV3(dataset: str):
@@ -100,7 +100,7 @@ def mergeTypePrixV3(decp: pd.DataFrame):
     return decp
 
 
-# In[11]:
+# In[4]:
 
 
 def loadDecpV4(dataset: str):
@@ -170,7 +170,7 @@ def loadDecpV4(dataset: str):
     return decp
 
 
-# In[7]:
+# In[5]:
 
 
 def mergeDatasets(version, folder: str = 'Z:/datasets/DECP/', filePrefix: str = 'decp-v3-marches-valides-'):
