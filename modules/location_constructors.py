@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[22]:
+# In[2]:
 
 
 import pandas as pd
@@ -45,7 +45,7 @@ import eurostat
 from loguru import logger
 
 
-# In[2]:
+# In[3]:
 
 
 if '__file__' not in globals():
@@ -55,7 +55,7 @@ from modules.neomodel_classes import *
 from modules.location_loaders import *
 
 
-# In[31]:
+# In[11]:
 
 
 @logger.catch
@@ -87,7 +87,8 @@ def getCity(codes: dict) -> City | Cedex:
             node = Cedex(modelVersion = modelVersion,
                          recordCreationDate = datetime.now(tz= pytz.timezone('CET')),
                          recordLastUpdate   = datetime.now(tz= pytz.timezone('CET')),
-                         code = codes['cedex'], codeCedex = codes['cedex'], 
+                         code = codes['cedex'], codeCedex = codes['cedex'],
+                         nameOrigin = codes['nom'],
                          codeType = codes['type']
                          ).save()
         elif codes['final'] == 'commune':
@@ -97,6 +98,7 @@ def getCity(codes: dict) -> City | Cedex:
                         recordCreationDate = datetime.now(tz= pytz.timezone('CET')),
                         recordLastUpdate   = datetime.now(tz= pytz.timezone('CET')),
                         code = codes['commune'], codeCommune = codes['commune'],
+                        nameOrigin = codes['nom'],
                         postCode = codes['postal'], name = codes['commune_name'], cityName = codes['commune_name']
                        ).save()
         else:
@@ -114,7 +116,7 @@ def getCity(codes: dict) -> City | Cedex:
     return node
 
 
-# In[30]:
+# In[12]:
 
 
 @logger.catch
@@ -170,7 +172,7 @@ def getRegionFromDepartement(code: str) -> (str, str):
     return region, region_name
 
 
-# In[29]:
+# In[13]:
 
 
 @logger.catch
@@ -199,6 +201,7 @@ def getArrondissement(codes: dict) -> Arrondissement:
                                         recordLastUpdate   = datetime.now(tz= pytz.timezone('CET')),
                                         code = codes['arrondissement'],
                                         name = codes['arrondissement_name'],
+                                        nameOrigin = codes['nom'],
                                         arrondissementCode = codes['arrondissement'],
                                         arrondissementName = codes['arrondissement_name']).save()
 
@@ -211,7 +214,7 @@ def getArrondissement(codes: dict) -> Arrondissement:
     return arrondissement
 
 
-# In[28]:
+# In[14]:
 
 
 @logger.catch
@@ -239,6 +242,7 @@ def getCanton(codes: dict) -> Canton:
                         recordLastUpdate   = datetime.now(tz= pytz.timezone('CET')),
                         code = codes['canton'],
                         name = codes['canton_name'],
+                        nameOrigin = codes['nom'],
                         cantonCode = codes['canton'],
                         cantonName = codes['canton_name']).save()
 
@@ -251,7 +255,7 @@ def getCanton(codes: dict) -> Canton:
     return canton
 
 
-# In[27]:
+# In[15]:
 
 
 @logger.catch
@@ -284,6 +288,7 @@ def getDepartement(codes: dict) -> Departement:
                                   recordLastUpdate   = datetime.now(tz= pytz.timezone('CET')),
                                   code = codes['departement'],
                                   name = codes['departement_name'],
+                                  nameOrigin = codes['nom'],
                                   departementCode = codes['departement'],
                                   departementName = codes['departement_name']).save()
 
@@ -296,7 +301,7 @@ def getDepartement(codes: dict) -> Departement:
     return departement
 
 
-# In[26]:
+# In[16]:
 
 
 @logger.catch
@@ -329,6 +334,7 @@ def getRegion(codes: dict) -> Region:
                         recordLastUpdate   = datetime.now(tz= pytz.timezone('CET')),
                         code = codes['region'],
                         name = codes['region_name'],
+                        nameOrigin = codes['nom'],
                         regionCode = codes['region'],
                         regionName = codes['region_name']).save()
 
@@ -341,7 +347,7 @@ def getRegion(codes: dict) -> Region:
     return region
 
 
-# In[25]:
+# In[17]:
 
 
 @logger.catch
@@ -383,6 +389,7 @@ def getCountry(codes: dict, codeFormat: str = 'ISO2') -> Country:
                           codeFormat = codeFormat,
                           code = countryCode,
                           name = countryName,
+                          nameOrigin = codes['nom'],
                           countryCode = countryCode,
                           countryName = countryName
                          ).save()
