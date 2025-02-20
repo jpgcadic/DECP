@@ -16,6 +16,7 @@ from requests.exceptions import RequestException
 from datetime import date
 from dateutil import parser
 from loguru import logger
+import itertools
 
 from neo4j import GraphDatabase
 
@@ -348,4 +349,88 @@ def checkLaPosteSiret(sirenId: str) -> (str, str | None):
         sirenType = 'siren' if len(sirenId) == 9 else 'siret'
     
     return sirenId, sirenType
+
+
+# In[10]:
+
+
+def checkEnterprises(contract: pd.Series, id2ds: dict, id2type: dict = None) -> pd.Series:
+    """
+    """
+    ds2id = {v: k for k, v in id2ds.items()}
+    searchDS = {x: True for x in id2ds.values()}
+
+    varsDS = ['denominationUniteLegale', 'denominationUsuelle1UniteLegale', 'denominationUsuelle2UniteLegale', 'denominationUsuelle3UniteLegale',
+              'nomUniteLegale', 'sigleUniteLegale', 'enseigne1Etablissement', 'enseigne2Etablissement', 'enseigne3Etablissement',
+              'nomUsageUniteLegale', 'denominationUsuelleEtablissement']
+
+    t = contract[list(id2ds.keys())]
+    for titulaireId, ix in zip(t[t.notna()].values, t[t.notna()].index):
+        # on vérifie le SIRET
+        sirenId, sirenType = checkSiretOrSiren(str(titulaireId))
+        if sirenType is not None:
+            try:
+                df = search_sirene(variable = [sirenType], number= 1, pattern = [sirenId],
+                                   phonetic_search = False, legal=True, closed=True)
+                # cette API peut renvoyer plusieurs lignes pour un même SIRET, même si number= 1.
+                # on ne conserve que la première ligne retournée, en conservant néanmoins le format dataframe.
+                df = df.iloc[0, :]
+                contract[ix] = str(df.siret)
+                if id2type is not None:
+                    contract[id2type[ix]] = 'SIRET'
+                searchDS[id2ds[ix]] = False
+            except RequestException:
+                # on tente une recherche via numéro SIREN, dans certains cas il y a une erreur de saisie du NIC
+                try:
+                    df = search_sirene(variable = ['siren'], number= 1, pattern = [sirenId[0:9]],
+                                       phonetic_search = False, legal=True, closed=True)
+                    # cette API peut renvoyer plusieurs lignes pour un même SIRET, même si number= 1.
+                    # on ne conserve que la première ligne retournée, en conservant néanmoins le format dataframe.
+                    df = df.iloc[0, :]
+                    contract[ix] = str(df.siret)
+                    if id2type is not None:
+                        contract[id2type[ix]] = 'SIRET'
+                    searchDS[id2ds[ix]] = False
+                except RequestException:
+                    logger.trace("Identifiant absent de SIRENE : {}, {}", ix, titulaireId)
+                    searchDS[id2ds[ix]] = True
+        else:
+            logger.trace("Identifiant invalide : {}, {}", ix, titulaireId)
+            searchDS[id2ds[ix]] = True
+    
+    # on recherche le cas échéant les identifiants au moyen de la dénomination sociale
+    #  
+    d = contract[list(id2ds.values())]
+    if not d[d.notna()].empty:
+        # des valeurs de denomination sociale sont présentes
+        for ds, ix in zip(d[d.notna()].values, d[d.notna()].index):
+            if searchDS[ix] is True:
+                found = False
+                # on a une dénomination non vide dans le dataset, correspondant à un id titulaire absent ou invalide 
+                for phoneticOption, var in itertools.product([False, True], varsDS):
+                    try:
+                        df = search_sirene(variable = [var], number= 1, pattern= [ds],
+                                          phonetic_search = phoneticOption, legal=True, closed=True)
+                        found = True
+                        df = df.iloc[0, :]
+                        contract[ds2id[ix]] = str(df.siret)
+                        if id2type is not None:
+                            contract[id2type[ds2id[ix]]] = 'SIRET'
+                        logger.trace("Entreprise {} identifiée via {} et option phonétique {}", df.siret, var, phoneticOption)
+                        break
+                    except RequestException:
+                        # entreprise pas identifiable, on remplace la valeur éventuelle par NA
+                        contract[ds2id[ix]] = pd.NA
+                        if id2type is not None:
+                            contract[id2type[ds2id[ix]]] = pd.NA
+                        found = False
+                if not found:
+                    logger.trace("Entreprise {} du titulaire {} non identifiée", ds, ix)
+    else:
+        # aucune dénomination sociale présente, on marque à NA les identifiants encore marqués à rechercher
+        for x in id2ds.keys():
+            if searchDS[id2ds[x]]:
+                contract[x] = pd.NA
+        
+    return contract
 
