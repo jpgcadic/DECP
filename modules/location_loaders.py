@@ -1,16 +1,22 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[7]:
+# In[1]:
 
 
 import pandas as pd
+import sys
+from pathlib import Path
+if '__file__' not in globals():
+    sys.path.append(str(Path().absolute().parent))
 from modules.config import session
+from loguru import logger
 
 
-# In[4]:
+# In[2]:
 
 
+@logger.catch
 def loadCountries(file: str, codeFormat: str = 'ISO2') -> pd.DataFrame:
     """
     """
@@ -22,6 +28,7 @@ def loadCountries(file: str, codeFormat: str = 'ISO2') -> pd.DataFrame:
     return df
 
 
+@logger.catch
 def loadRegions(file: str) -> pd.DataFrame:
     """
     """
@@ -32,6 +39,7 @@ def loadRegions(file: str) -> pd.DataFrame:
     return df
 
 
+@logger.catch
 def loadCommune2Post(file: str) -> pd.DataFrame:
     """
     """
@@ -46,6 +54,7 @@ def loadCommune2Post(file: str) -> pd.DataFrame:
     return df
 
 
+@logger.catch
 def loadPost2Commune(file: str) -> pd.DataFrame:
     """
     """
@@ -64,6 +73,7 @@ def loadPost2Commune(file: str) -> pd.DataFrame:
     return df
 
 
+@logger.catch
 def loadCommunes(file: str) -> pd.DataFrame:
     """
     """
@@ -84,12 +94,14 @@ def loadCommunes(file: str) -> pd.DataFrame:
 
     return df
 
+@logger.catch
 def loadNuts(file: str) -> pd.DataFrame:
     """
     """
     return pd.read_csv(file, sep= ';', index_col= 'NUTS3', dtype= object)
 
 
+@logger.catch
 def loadIso3166(file: str) -> pd.DataFrame:
     """
     """
@@ -98,12 +110,14 @@ def loadIso3166(file: str) -> pd.DataFrame:
     return df
 
 
+@logger.catch
 def loadDepartements(file: str) -> pd.DataFrame:
     """
     """
     return pd.read_csv(file, dtype= object, index_col= 'DEP')
 
 
+@logger.catch
 def loadArrondissements(file: str) -> pd.DataFrame:
     """
     """
@@ -111,6 +125,7 @@ def loadArrondissements(file: str) -> pd.DataFrame:
     return df
 
 
+@logger.catch
 def loadCantons(file: str) -> pd.DataFrame:
     """
     """
@@ -118,6 +133,7 @@ def loadCantons(file: str) -> pd.DataFrame:
     return df
 
 
+@logger.catch
 def loadComer(file: str, index: str) -> pd.DataFrame:
     """
     """
