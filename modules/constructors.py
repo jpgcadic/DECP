@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[2]:
+# In[1]:
 
 
 import pandas as pd
@@ -45,7 +45,7 @@ import eurostat
 import json
 
 
-# In[ ]:
+# In[2]:
 
 
 if '__file__' not in globals():
@@ -56,9 +56,10 @@ from modules.neomodel_classes import *
 from modules.location_management import getDeliveryLocation, getLocationCode
 from modules.location_constructors import getCity, getRegionFromDepartement
 from modules.utils import checkEnterprises
+from modules.requests import getCodeInVersion
 
 
-# In[15]:
+# In[3]:
 
 
 def addBuyer(siretBuyer: str, buyerName: str, buyerLegalName: str):
@@ -103,7 +104,7 @@ def addBuyer(siretBuyer: str, buyerName: str, buyerLegalName: str):
     return buyer
 
 
-# In[25]:
+# In[4]:
 
 
 @logger.catch
@@ -206,7 +207,7 @@ def addContract(contract: pd.Series):
         match col:
             case 'id'                       : contractNode.contractId = contract[col]
             case 'nature'                   : contractNode.nature = contract[col]
-            case 'codeCPV'                  : contractNode.codeCPV = contract[col]
+            case 'codeCPV'                  : connectToCpv(contractNode, contract[col])
             case 'dureeMois'                : contractNode.dureeMois = contract[col]
             case 'formePrix'                : contractNode.formePrix = contract[col]
             case 'objet'                    : contractNode.objet = contract[col]
@@ -401,7 +402,7 @@ def addContract(contract: pd.Series):
     return contractNode
 
 
-# In[24]:
+# In[5]:
 
 
 @logger.catch
@@ -441,7 +442,7 @@ def updateContract(contract: pd.Series, cols= None, key= 'old'):
             match col:
                 case 'id'                       : contractNode.contractId = contract[col]
                 case 'nature'                   : contractNode.nature = contract[col]
-                case 'codeCPV'                  : contractNode.codeCPV = contract[col]
+                case 'codeCPV'                  : connectToCpv(contractNode, contract[col])
                 case 'dureeMois'                : contractNode.dureeMois = contract[col]
                 case 'formePrix'                : contractNode.formePrix = contract[col]
                 case 'objet'                    : contractNode.objet = contract[col]
@@ -626,7 +627,7 @@ def updateContract(contract: pd.Series, cols= None, key= 'old'):
     return contractNode
 
 
-# In[23]:
+# In[6]:
 
 
 @logger.catch
@@ -678,7 +679,7 @@ def addEnterprise(titulaire: pd.Series) -> pd.Series:
     return titulaire
 
 
-# In[22]:
+# In[7]:
 
 
 def addEnterpriseWithSiret(sirenId: str, typeId: str= 'SIRET', originalDS= ''):
@@ -822,7 +823,7 @@ def addEnterpriseWithSiret(sirenId: str, typeId: str= 'SIRET', originalDS= ''):
     return enterprise
 
 
-# In[10]:
+# In[8]:
 
 
 def updatePartnershipContractNode(contract: pd.Series):
@@ -868,7 +869,7 @@ def updatePartnershipContractNode(contract: pd.Series):
             case 'id'                       : contractNode.idContract = contract[col]
             case 'acheteur.id'              : contractNode.buyerId = contract[col]
             case 'nature'                   : contractNode.nature = contract[col]
-            case 'codeCPV'                  : contractNode.codeCPV = contract[col]
+            case 'codeCPV'                  : connectToCpv(contractNode, contract[col])
             case 'dureeMois'                : contractNode.dureeMois = contract[col]
             case 'formePrix'                : contractNode.formePrix = contract[col]
             case 'objet'                    : contractNode.objet = contract[col]
@@ -983,7 +984,7 @@ def reconnectEnterprises(contract: pd.Series):
     return contract
 
 
-# In[21]:
+# In[10]:
 
 
 def updateBuyer(buyer):
@@ -1062,7 +1063,7 @@ def updateBuyer(buyer):
         buyer.save()
 
 
-# In[7]:
+# In[11]:
 
 
 def refactorSite(dictId, pattern):
@@ -1134,4 +1135,60 @@ def migrateEnterpriseNode(old, new):
     old.delete()
 
     return countRelations
+
+
+# In[12]:
+
+
+def connectToCpv(contractNode: Contract, code: str):
+    """
+    Requête Cypher : getCodeInVersion =
+    "MATCH(c:CPV), (v:CPV) WHERE c.code = '{}' AND v.versionCPV = '{}' AND ((c:CPV)-[:IS_IN_CATEGORY*1..5]-(v:CPV)) RETURN c"
+    """
+    if code is None:
+        logger.trace("code None")
+    else:
+        # élision du code de contrôle éventuel
+        code = code.split('-')[0]
+    
+        # suppression des INX
+        toRemove = ['INX ']
+        for substring in toRemove:
+            if code.find(substring) != -1:
+                code = code[len(substring):]
+                logger.trace("Suppression INX pour code {}", code)
+        
+        try:
+            cpvNode = None
+            request = getCodeInVersion.format(code, '2008')
+            result = db.cypher_query(request, resolve_objects=True)
+            if len(result[0]) > 1:
+                logger.trace("Multiple noeuds CPV ({}) lors de la connexion du contrat à la catégorie CPV {} en version {}",
+                             len(result[0]), code, '2008')
+                cpvNode = result[0][0][0]
+            elif len(result[0]) == 0:
+                # on recherche s'il ne s'agit pas d'un ancien code 2003
+                try:
+                    request = getCodeInVersion.format(code, '2003')
+                    result = db.cypher_query(request, resolve_objects=True)
+                    if len(result[0]) > 1:
+                        logger.trace("Multiple noeuds CPV ({}) lors de la connexion du contrat à la catégorie CPV {} en version {}",
+                                     len(result[0]), code, '2003')
+                        cpvNode = result[0][0][0]
+                    elif len(result[0]) == 0:
+                        logger.trace("Catégorie CPV {} inexistante", code)
+                        unknown.append(code)
+                    else:
+                        cpvNode = result[0][0][0]
+                    if cpvNode is not None:
+                        contractNode.cpv.connect(cpvNode)
+                except CypherSyntaxError:
+                    logger.trace('Requête Cypher incorrecte : {}', request)
+            else:
+                # c'est le cas normalement attendu
+                cpvNode = result[0][0][0]
+            if cpvNode is not None:
+                contractNode.cpv.connect(cpvNode)
+        except CypherSyntaxError:
+            logger.trace('Requête Cypher incorrecte : {}', request)
 
