@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[1]:
+# In[13]:
 
 
 import pandas as pd
@@ -20,6 +20,7 @@ from dateutil import parser
 from loguru import logger
 
 from neo4j import GraphDatabase
+from neo4j.exceptions import CypherSyntaxError 
 
 from neomodel import config, db, install_labels, install_all_labels
 from neomodel import (StructuredNode,  RelationshipTo, RelationshipFrom, StructuredRel)
@@ -679,7 +680,7 @@ def addEnterprise(titulaire: pd.Series) -> pd.Series:
     return titulaire
 
 
-# In[7]:
+# In[15]:
 
 
 def addEnterpriseWithSiret(sirenId: str, typeId: str= 'SIRET', originalDS= ''):
@@ -691,6 +692,7 @@ def addEnterpriseWithSiret(sirenId: str, typeId: str= 'SIRET', originalDS= ''):
     if var not in ['siret', 'siren']:
         logger.trace("Type identifiant invalide : {} pour {}", typeId, sirenId)
     try:
+        foundWithSiren = False
         df = search_sirene(variable = [var], number= 1,
                            pattern = [sirenId], phonetic_search = False, legal=True, closed=True)
     except RequestException:
@@ -699,20 +701,26 @@ def addEnterpriseWithSiret(sirenId: str, typeId: str= 'SIRET', originalDS= ''):
             df = search_sirene(variable = ['siren'], number= 1,
                                pattern = [sirenId[0:9]], phonetic_search = False, legal=True, closed=True)
             # trouvé avec le numéro SIREN
+            foundWithSiren = True
         except RequestException:
             # décidément pas trouvé
-            # création du noeud avec informations minimales, le site est considéré siège par défaut
-            # il n'est pas rattaché à une localisation.
-            enterprise = Enterprise(modelVersion = modelVersion,
-                                    recordCreationDate = datetime.now(tz= pytz.timezone('CET')),
-                                    recordLastUpdate   = datetime.now(tz= pytz.timezone('CET')),
-                                    titulaireId= sirenId if typeId.lower() == 'siret' else sirenId + '00000',
-                                    titulaireSiren = sirenId[0:9],
-                                    titulaireSite =  sirenId[9:14],
-                                    titulaireDenominationSociale = 'not known in SIRENE',
-                                    titulaireDenominationOriginale = originalDS,
-                                    titulaireTypeIdentifiant = typeId,
-                                    isSiege = True).save()
+            # on recherche d'abord si le noeud existe déjà, ce qui peut arriver si on insère un siret fictif avec 00000
+            titulaireId= sirenId if typeId.lower() == 'siret' else sirenId + '00000'
+            try:
+                enterprise = Enterprise.nodes.get(titulaireId = titulaireId)
+            except RequestException:
+                # création du noeud avec informations minimales, le site est considéré siège par défaut
+                # il n'est pas rattaché à une localisation.
+                enterprise = Enterprise(modelVersion = modelVersion,
+                                        recordCreationDate = datetime.now(tz= pytz.timezone('CET')),
+                                        recordLastUpdate   = datetime.now(tz= pytz.timezone('CET')),
+                                        titulaireId= titulaireId,
+                                        titulaireSiren = sirenId[0:9],
+                                        titulaireSite =  sirenId[9:14],
+                                        titulaireDenominationSociale = 'not known in SIRENE',
+                                        titulaireDenominationOriginale = originalDS,
+                                        titulaireTypeIdentifiant = typeId,
+                                        isSiege = True).save()
             return enterprise
         
     # à ce point on a identifié l'entreprise avec son numéro SIRET ou SIREN
@@ -741,21 +749,34 @@ def addEnterpriseWithSiret(sirenId: str, typeId: str= 'SIRET', originalDS= ''):
         
     else:
         denominationUniteLegale = str(*df['denominationUniteLegale'])
-        
-    # création du noeud Enterprise avec les informations minimales
-    logger.trace("Création Entreprise {} {}, denomination sociale originale = {}",
-                 df.siret[0], denominationUniteLegale, originalDS)
 
-    enterprise = Enterprise(modelVersion = modelVersion,
-                            recordCreationDate = datetime.now(tz= pytz.timezone('CET')),
-                            titulaireId= df.siret[0],
-                            titulaireSiren = df.siren[0],
-                            titulaireSite =  df.nic[0],
-                            titulaireTypeIdentifiant = typeId,
-                            titulaireDenominationSociale = denominationUniteLegale,
-                            titulaireDenominationOriginale = originalDS,
-                            isSiege = df.etablissementSiege.all()
-                           ).save()
+    createEnterprise = True
+    if foundWithSiren:
+        logger.trace("Recherche dans la base entreprise {} {} , denomination sociale originale = {}, SIRET original = {}",
+                     df.siret[0], denominationUniteLegale, originalDS, sirenId)
+        try:
+            enterprise = Enterprise.nodes.get(titulaireId = df.siret[0])
+            createEnterprise = False
+            logger.trace("Entreprise trouvée dans la base : {} {} , denomination sociale originale = {}, SIRET original = {}",
+                         df.siret[0], denominationUniteLegale, originalDS, sirenId)
+        except RequestException:
+            pass
+
+    if createEnterprise:
+        # création du noeud Enterprise avec les informations minimales
+        logger.trace("Création Entreprise {} {}, denomination sociale originale = {}, SIRET original = {}",
+                     df.siret[0], denominationUniteLegale, originalDS, sirenId)
+    
+        enterprise = Enterprise(modelVersion = modelVersion,
+                                recordCreationDate = datetime.now(tz= pytz.timezone('CET')),
+                                titulaireId= df.siret[0],
+                                titulaireSiren = df.siren[0],
+                                titulaireSite =  df.nic[0],
+                                titulaireTypeIdentifiant = typeId,
+                                titulaireDenominationSociale = denominationUniteLegale,
+                                titulaireDenominationOriginale = originalDS,
+                                isSiege = df.etablissementSiege.all()
+                               ).save()
 
     # on ne conserve ensuite que les informations effectivement renseignées
     df = df.dropna(axis= 'columns')
@@ -1177,7 +1198,6 @@ def connectToCpv(contractNode: Contract, code: str):
                         cpvNode = result[0][0][0]
                     elif len(result[0]) == 0:
                         logger.trace("Catégorie CPV {} inexistante", code)
-                        unknown.append(code)
                     else:
                         cpvNode = result[0][0][0]
                     if cpvNode is not None:
