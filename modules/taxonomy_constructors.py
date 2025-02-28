@@ -18,6 +18,7 @@ import pytz
 from dateutil import parser
 import re
 from numpy import ndarray
+import numpy as np
 
 
 # In[2]:
@@ -65,6 +66,7 @@ def loadCPV2003() -> pd.DataFrame:
 # In[3]:
 
 
+@logger.catch
 def getUpperCategory(code: str, values: ndarray, upperCategoryMaskSize: dict, versionCPV: str) -> str:
     """
     """
@@ -136,6 +138,7 @@ def connectCpvNodes(cpv: pd.Series, top: CPV, toConnect: dict) -> CPV :
 # In[6]:
 
 
+@logger.catch
 def CpvEquivalences(cpv: pd.Series, toConnect2008: dict, toConnect2003: dict):
     """
     toConnect2008, toConnect2003 : dictionnaires avec clé = code, valeur = objet noeud correspondant
@@ -148,6 +151,7 @@ def CpvEquivalences(cpv: pd.Series, toConnect2008: dict, toConnect2003: dict):
 # In[7]:
 
 
+@logger.catch
 def installCpv():
     """
     """
@@ -180,10 +184,33 @@ def installCpv():
     
     return cpv2008, cpv2003, toConnect2008, toConnect2003
 
+    # pour installation :
+    # cpv2008, cpv2003, toConnect2008, toConnect2003 = installCpv()
 
-# In[10]:
+
+# In[9]:
 
 
-# pour installation :
-# cpv2008, cpv2003, toConnect2008, toConnect2003 = installCpv()
+@logger.catch
+def loadNaf() -> pd.DataFrame:
+    """
+    """
+    naf = pd.read_excel(session['naf'], usecols= [1, 2, 3, 4],    # on supprime les lignes intercalaires 
+                        dtype= str, names= ['code', 'naf2', 'naf2_65', 'naf2_40']).dropna(how= 'all').reset_index(drop= True)
+
+    # on va déplacer vers des colonnes les informations des lignes en-tête indiquant les sections de la NAF, puis les supprimer
+    # c'est l'objet des 3 lignes suivantes.
+    secNames = naf[naf.code.str.startswith('SECTION')][['code', 'naf2']]
+    
+    # l'index du dataframe des sections NAF indique les délimitations de ces sections dans le dataframe naf
+    # on parcourt l'index de naf pour calculer (fonction np.where) l'index dans le dataframe des noms de section NAF
+    # il y a un léger glitch sur les lignes en-tête (p. ex index 95 'SECTION B' est indiquée 'SECTION A' en colonne 'section')
+    # mais ces lignes sont ensuite supprimées.
+
+    naf[['section', 'nom_section']] = secNames.iloc[[max(0, np.where(np.sort(np.append(secNames.index, i)) == i)[0][0] - 1) for i in naf.index], [0, 1]].reset_index(drop= True)
+
+    # on supprime les lignes en-tête
+    naf = naf[~naf.code.str.startswith('SECTION')].reset_index(drop= True)
+
+    return naf
 
