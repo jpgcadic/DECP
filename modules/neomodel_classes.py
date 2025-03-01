@@ -15,12 +15,13 @@ from neomodel.exceptions import *
 from neomodel.integration.pandas import to_dataframe, to_series
 from neomodel.integration.numpy import to_ndarray
 
+from neomodel import One, OneOrMore, ZeroOrMore, ZeroOrOne
 
 
-# In[3]:
+# In[2]:
 
 
-modelVersion = '1.0.2'
+modelVersion = '1.0.3'
 
 class CommonRecordProperty:
     recordCreationDate = DateTimeFormatProperty(index= True, format="%Y-%m-%d %H:%M:%S")
@@ -29,6 +30,13 @@ class CommonRecordProperty:
 
 class LocationRel(StructuredRel):
     deliveryLocationTypeId = StringProperty()
+    
+
+class CpvRel(StructuredRel):
+    cpv = StringProperty()
+    
+class DefaultRel(StructuredRel):
+    version = StringProperty()
     
 
 class Enterprise(StructuredNode, CommonRecordProperty):
@@ -79,6 +87,7 @@ class Enterprise(StructuredNode, CommonRecordProperty):
     publicContract            = RelationshipTo('Contract', 'HAS_CONTRACT')
     siege                     = RelationshipTo('Enterprise', 'IS_BRANCH_OF')
     enterpriseLocation        = RelationshipTo('LocationNode', 'IS_LOCATED_IN', model= LocationRel)
+    naf                       = RelationshipTo('NAF', 'HAS_NAF_CODE', model= DefaultRel)
 
 
 class Buyer(StructuredNode, CommonRecordProperty):
@@ -129,6 +138,7 @@ class Contract(StructuredNode, CommonRecordProperty):
     booleanModification               = BooleanProperty(unique_index=False, required=False)
 
     deliveryLocation                  = RelationshipTo('LocationNode', 'IS_DELIVERED_IN', model= LocationRel)
+    cpv                               = RelationshipTo('CPV', 'IS_IN_CPV', model= CpvRel)
 
 class MultiPartyContract(Contract):
     typeGroupementOperateurs = StringProperty(unique_index=False, required=True)
@@ -220,4 +230,29 @@ class Canton(LocationNode):
     country           = RelationshipTo('Country', 'IS_IN_COUNTRY', model= LocationRel)
     region            = RelationshipTo('Region', 'IS_IN_REGION', model= LocationRel)
     departement       = RelationshipTo('Departement', 'IS_IN_DEPARTEMENT', model= LocationRel)
+
+
+class CPV(StructuredNode, CommonRecordProperty):
+    versions           = {'2003': 'Nomenclature 2003', '2008': 'Nomenclature 2008'}
+    categories         = {1: 'Top', 2: 'Division', 3: 'Group', 4: 'Class', 5: 'Category', 6: 'Code', 7: 'Code', 8: 'Code'}
+    versionCPV         = StringProperty(unique_index=False, required=False, choices= versions)
+    code               = StringProperty(unique_index=False, required=True)
+    designation        = StringProperty(unique_index=False, required=False)
+    category           = IntegerProperty(unique_index=False, required=True, choices= categories)
+    parentCategory     = RelationshipTo('CPV', 'IS_IN_CATEGORY', cardinality= One, model= CpvRel)
+    childCategory      = RelationshipFrom('CPV', 'HAS_CATEGORY', cardinality= ZeroOrMore, model= CpvRel)
+    replaces           = RelationshipTo('CPV', 'REPLACES', cardinality= ZeroOrMore, model= CpvRel)
+
+
+class NAF(StructuredNode, CommonRecordProperty):
+    levelsNaf          = {'section': 'section', 'division': 'division', 'groupe': 'groupe',
+                          'classe': 'classe', 'sous-classe': 'sous-classe'}
+    code               = StringProperty(unique_index=True, required=False)
+    levelName          = StringProperty(unique_index=False, required=False, choices= levelsNaf)
+    label              = StringProperty(unique_index=False, required=False)
+    label65            = StringProperty(unique_index=False, required=False)
+    label40            = StringProperty(unique_index=False, required=False)
+    sectionCode        = StringProperty(unique_index=False, required=False)
+    sectionName        = StringProperty(unique_index=False, required=False)
+    upperSection       = RelationshipTo('NAF', 'IS_IN_UPPER_LEVEL', cardinality= ZeroOrOne, model= DefaultRel)
 

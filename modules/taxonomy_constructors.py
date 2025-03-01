@@ -11,7 +11,7 @@ if '__file__' not in globals():
     sys.path.append(str(Path().absolute().parent))
 from modules.config import session
 
-from modules.neomodel_classes import modelVersion, CPV
+from modules.neomodel_classes import modelVersion, CPV, NAF
 from loguru import logger
 from datetime import date, datetime
 import pytz
@@ -188,7 +188,7 @@ def installCpv():
     # cpv2008, cpv2003, toConnect2008, toConnect2003 = installCpv()
 
 
-# In[9]:
+# In[8]:
 
 
 @logger.catch
@@ -212,5 +212,74 @@ def loadNaf() -> pd.DataFrame:
     # on supprime les lignes en-tête
     naf = naf[~naf.code.str.startswith('SECTION')].reset_index(drop= True)
 
+    return naf
+
+
+# In[9]:
+
+
+@logger.catch
+def addNafSections(naf: pd.DataFrame) -> NAF:
+    """
+    naf
+    """
+    sections = naf[['section', 'nom_section']].drop_duplicates(keep= 'first')
+    sectionsNodes = sections.apply(lambda x: NAF(sectionCode= x.section, sectionName= x.nom_section,
+                                                 modelVersion= modelVersion).save(), axis= 1)
+    
+    return sectionsNodes
+
+
+@logger.catch
+def addNafNodes(naf: pd.Series) -> NAF:
+    """
+    """
+    
+    level = len(naf.code.replace('.', ''))
+    
+    nafNode = NAF(code= naf.code, levelName= list(NAF.levelsNaf.keys())[level - 1],
+                  label= naf.naf2, label65= naf.naf2_65, label40= naf.naf2_40,
+                  modelVersion= modelVersion).save()
+
+    return nafNode
+
+
+@logger.catch
+def connectNafNodes(naf: pd.Series):
+    """
+    Les codes sont de la forme : 
+      12.34A -> longueur 6, niveau = sous-classe
+      12.34  -> longueur 5, niveau = classe
+      12.3   -> longueur 4, niveau = groupe
+      12     -> longueur 2, niveau = division
+      Il n'y a donc pas de code de longueur 3.
+    """
+    if len(naf.code) == 2:
+        toNode = NAF.nodes.get(sectionCode= naf.section)
+    else:
+        if len(naf.code) == 4:
+            toNode = NAF.nodes.get(code= naf.code[0:len(naf.code) - 2])
+        else:
+            toNode = NAF.nodes.get(code= naf.code[0:len(naf.code) - 1])
+            
+    fromNode = NAF.nodes.get(code= naf.code)
+    fromNode.upperSection.connect(toNode)
+
+    return None
+
+
+@logger.catch
+def installNaf():
+    """
+    """
+    logger.trace("Chargement dataset")
+    naf = loadNaf()
+    logger.trace("Ajout des noeuds section")
+    addNafSections(naf)
+    logger.trace("Ajout des noeuds NAF")
+    naf.apply(addNafNodes, axis= 1)
+    logger.trace("Connexion des noeuds NAF")
+    naf.apply(connectNafNodes, axis= 1)
+    
     return naf
 

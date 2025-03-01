@@ -111,7 +111,8 @@ def addBuyer(siretBuyer: str, buyerName: str, buyerLegalName: str):
 @logger.catch
 def addContract(contract: pd.Series):
     """
-    - contract : ligne de dataframe contenant les informations relatives à un contrat. 
+    - contract : Serie correspondant à une ligne de dataframe contenant les informations relatives à un contrat.
+    - Sortie : renvoie la liste des noeuds Contract
     """
    
     col0 = ['titulaire_id_1', 'titulaire_id_2', 'titulaire_id_3']
@@ -631,6 +632,22 @@ def updateContract(contract: pd.Series, cols= None, key= 'old'):
 # In[6]:
 
 
+def AddContractsIncremental():
+    """
+    """
+    prevDecp = loadDecpV4('Z:/datasets/DECP/decp-2022-marches-valides-previous.csv')
+    newDecp =  loadDecpV4()
+
+    diff = pd.concat([newDecp, prevDecp]).drop_duplicates(subset=  ['id', 'acheteur.id'], keep= False).reset_index(drop= True)
+
+    nodes = diff.apply(addContract, axis= 1)
+
+    return nodes
+
+
+# In[7]:
+
+
 @logger.catch
 def addEnterprise(titulaire: pd.Series) -> pd.Series:
     """
@@ -680,7 +697,7 @@ def addEnterprise(titulaire: pd.Series) -> pd.Series:
     return titulaire
 
 
-# In[7]:
+# In[8]:
 
 
 def addEnterpriseWithSiret(sirenId: str, typeId: str= 'SIRET', originalDS= ''):
@@ -802,9 +819,7 @@ def addEnterpriseWithSiret(sirenId: str, typeId: str= 'SIRET', originalDS= ''):
             case 'activitePrincipaleUniteLegale'       : enterprise.activitePrincipaleUniteLegale = str(*df[col])
             case 'activitePrincipaleUniteLegaleLibelle':
                 enterprise.activitePrincipaleUniteLegaleLibelle = str(*df[col])
-            case 'activitePrincipaleEtablissement'     : enterprise.activitePrincipaleEtablissement = str(*df[col])
-            case 'activitePrincipaleEtablissementLibelle':
-                enterprise.activitePrincipaleEtablissementLibelle = str(*df[col])
+            case 'activitePrincipaleEtablissement'     : connectToNaf(enterprise, str(*df[col]))
             case 'numeroVoieEtablissement'             : enterprise.numeroVoieEtablissement = str(*df[col])
             case 'typeVoieEtablissement'               : enterprise.typeVoieEtablissement = str(*df[col])
             case 'typeVoieEtablissementLibelle'        : enterprise.typeVoieEtablissementLibelle = str(*df[col])
@@ -844,7 +859,7 @@ def addEnterpriseWithSiret(sirenId: str, typeId: str= 'SIRET', originalDS= ''):
     return enterprise
 
 
-# In[8]:
+# In[9]:
 
 
 def updatePartnershipContractNode(contract: pd.Series):
@@ -973,7 +988,7 @@ def updatePartnershipContractNode(contract: pd.Series):
     return contract
 
 
-# In[9]:
+# In[10]:
 
 
 def reconnectEnterprises(contract: pd.Series):
@@ -1005,7 +1020,7 @@ def reconnectEnterprises(contract: pd.Series):
     return contract
 
 
-# In[10]:
+# In[11]:
 
 
 def updateBuyer(buyer):
@@ -1084,7 +1099,7 @@ def updateBuyer(buyer):
         buyer.save()
 
 
-# In[11]:
+# In[12]:
 
 
 def refactorSite(dictId, pattern):
@@ -1158,7 +1173,7 @@ def migrateEnterpriseNode(old, new):
     return countRelations
 
 
-# In[12]:
+# In[13]:
 
 
 def connectToCpv(contractNode: Contract, code: str):
@@ -1213,7 +1228,26 @@ def connectToCpv(contractNode: Contract, code: str):
             logger.trace('Requête Cypher incorrecte : {}', request)
 
 
-# In[13]:
+# In[14]:
+
+
+def connectToNaf(enterprise: Enterprise, code: str):
+    """
+    """
+    if enterprise.activitePrincipaleEtablissement is not None:
+        try:
+            toNafNode = NAF.nodes.get(code= enterprise.activitePrincipaleEtablissement)
+            enterprise.naf.connect(toNafNode)
+    
+        except DoesNotExist:
+            logger.trace("Code NAF inconnu : {} pour entreprise {}", enterprise.activitePrincipaleEtablissement,
+                         enterprise.titulaireId)
+            unknown.append(enterprise.activitePrincipaleEtablissement)
+    
+    return None
+
+
+# In[15]:
 
 
 def addInvContract(contract: pd.Series):
