@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[1]:
+# In[ ]:
 
 
 import pandas as pd
@@ -11,7 +11,7 @@ from pathlib import Path
 import glob
 
 
-# In[2]:
+# In[ ]:
 
 
 if '__file__' not in globals():
@@ -20,10 +20,10 @@ if '__file__' not in globals():
 from modules.config import *
 
 
-# In[3]:
+# In[ ]:
 
 
-def loadDecpV3(dataset: str):
+def loadDecpV3(dataset: str = session['dataset']):
     """
     Chargement du dataset et prétraitement des colonnes pour uniformisation entre les versions successives.
     Par défaut le dataset chargé est celui défini dans la variable session.
@@ -100,10 +100,10 @@ def mergeTypePrixV3(decp: pd.DataFrame):
     return decp
 
 
-# In[4]:
+# In[ ]:
 
 
-def loadDecpV4(dataset: str):
+def loadDecpV4(dataset: str = session['dataset_v4']):
     """
     Pour chargement des données conformes arrêté 2022
     Chargement du dataset et prétraitement des colonnes pour uniformisation entre les versions successives.
@@ -170,7 +170,7 @@ def loadDecpV4(dataset: str):
     return decp
 
 
-# In[5]:
+# In[ ]:
 
 
 def mergeDatasets(version, folder: str = 'Z:/datasets/DECP/', filePrefix: str = 'decp-v3-marches-valides-'):
@@ -201,7 +201,7 @@ def mergeDatasets(version, folder: str = 'Z:/datasets/DECP/', filePrefix: str = 
     return decp
 
 
-# In[6]:
+# In[ ]:
 
 
 def loadDecpV3inv(dataset: str, addColumns: list):
