@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[8]:
+# In[1]:
 
 
 import pandas as pd
@@ -20,7 +20,7 @@ if '__file__' not in globals():
 from modules.config import *
 
 
-# In[9]:
+# In[3]:
 
 
 def loadDecpV3(dataset: str):
@@ -100,7 +100,7 @@ def mergeTypePrixV3(decp: pd.DataFrame):
     return decp
 
 
-# In[11]:
+# In[4]:
 
 
 def loadDecpV4(dataset: str):
@@ -165,12 +165,12 @@ def loadDecpV4(dataset: str):
     decp.loc[:,colonnesBool] = decp.loc[:, colonnesBool].fillna(value= 0)
     decp.loc[:, colonnesBool] = decp.loc[:, colonnesBool].map(lambda x: repBools[x])
 
-    decpv4.loc[decpv4['tauxAvance'] == 'INX 0.0', 'tauxAvance'] = '0'
+    decp.loc[decp['tauxAvance'] == 'INX 0.0', 'tauxAvance'] = '0'
     
     return decp
 
 
-# In[7]:
+# In[5]:
 
 
 def mergeDatasets(version, folder: str = 'Z:/datasets/DECP/', filePrefix: str = 'decp-v3-marches-valides-'):
@@ -198,5 +198,86 @@ def mergeDatasets(version, folder: str = 'Z:/datasets/DECP/', filePrefix: str = 
     print(fileOut)
     decp.to_csv(fileOut, sep= ';', index= False)
 
+    return decp
+
+
+# In[6]:
+
+
+def loadDecpV3inv(dataset: str, addColumns: list):
+    """
+    Chargement du dataset et prétraitement des colonnes pour uniformisation entre les versions successives.
+    Par défaut le dataset chargé est celui défini dans la variable session.
+    Pour utilisation :
+    addColumns = ['Erreurs']
+    decpInv = loadDecpV3inv('Z:/datasets/DECP/decp-v3-marches-invalides.csv', addColumns)
+    """
+    useColsV3inv = useColsV3 + addColumns
+    # par défaut on considère des données type string, seules les exceptions de type numériques sont listées explicitement
+    typesDecpV3 = {x: str if x not in colonnesNum.keys() else colonnesNum[x] for x in useColsV3inv}
+
+    decp = pd.read_csv(dataset, sep= ';', usecols= useColsV3inv, dtype= typesDecpV3)
+
+    # on ne conserve que certains types de champs erronés
+    keepErrors = ['Champ id au mauvais format', 'Numéro SIRET erroné pour le champ titulaire',
+                  'Champ dateNotification ou datePublicationDonnees manquant',
+                  'Champ titulaire_typeIdentifiant_1 non renseigné',
+                  'Champ dureeMois trop grand', 'Champ dureeMois trop petit',
+                  'Numéro SIRET erroné pour le champ acheteur.id',
+                  'Champs codeCPV et objet manquants']
+    decp = decp.loc[decp.Erreurs.isin(keepErrors), :]
+    
+    decp.fillna({'lieuExecution.code': ''}, inplace= True)
+
+    # suppression des enregistrements sans identifiant ni dénomination sociale
+    decp = decp.loc[(decp['titulaire_id_1'].notna()) | (decp['titulaire_denominationSociale_1'].notna())]
+    
+    decp.rename(columns= renameColsV3, inplace= True)
+
+    # conversion des colonnes de type float en int si besoin
+    decp[['dureeMois', 'offresRecues']] = decp[['dureeMois', 'offresRecues']].astype('Int64')
+    
+    # normalisation des colonnes considérations sociales, considérations environnementales, modalités d'exécution 
+    colsConsiderationsSociales = ['Pas de considération sociale', 'Clause sociale', 'Critère social', 'Marché réservé']
+    colsConsiderationsEnvironnementales = ['Pas de considération environnementale',
+                                           'Critère environnemental',
+                                           'Clause environnementale']
+    colsModaliteExecution = ['Bons de commande', 'Tranches', 'Marchés subséquents', 'Mixte']
+    varsModaliteExecution = ['Bon* de commande', 'Tranche*', 'Marché* subséquent*', 'Mixte']
+    
+    for c in colsConsiderationsSociales:
+        decp[c] = decp.considerationsSociales.str.contains(c, regex= False)
+    
+    for c in colsConsiderationsEnvironnementales:
+        decp[c] = decp.considerationsEnvironnementales.str.contains(c, regex= False)
+    
+    for c, v in zip(colsModaliteExecution, varsModaliteExecution):
+        decp[c] = decp.considerationsEnvironnementales.str.contains(v, regex= True)
+
+    for c, v in zip(colsTechniques, varsTechniques):
+        decp[c] = decp.techniques.str.contains(v, regex= False)
+
+    decp = mergeTypePrixV3(decp)
+    
+    decp.drop(columns= dropColsV3, inplace= True)
+    
+    # traitements spécifiques 
+    decp = decp[~decp.objet.str.startswith(('test', 'Test', 'TEST'))]
+    decp = decp[~decp.objet.str.endswith(('test', 'Test', 'TEST'))]
+    decp = decp[(decp.titulaire_typeIdentifiant_1 == 'SIRET') | (decp.titulaire_typeIdentifiant_1.isna())]
+    decp = decp[(decp.titulaire_typeIdentifiant_2 == 'SIRET') | (decp.titulaire_typeIdentifiant_2.isna())]
+    decp = decp[(decp.titulaire_typeIdentifiant_3 == 'SIRET') | (decp.titulaire_typeIdentifiant_3.isna())]
+
+    decp = decp[decp['Erreurs'] != 'Champ montant probablement erroné']
+    
+    # suppression des doublons sur la clé (id, acheteur.id) :
+    # dans les cas de partenariats on peut retrouver le même contrat avec les mêmes titulaires notés dans un ordre différent
+    decp.drop_duplicates(subset= ['id', 'acheteur.id'], keep= 'first', inplace= True)
+
+    repBools = {'non': 0, 'Non': 0, 'false': 0, 'False': 0, 'oui': 1, 'Oui': 1, 'true': 1, 'True': 1, 0: 0}
+    decp.loc[:,colonnesBool] = decp.loc[:, colonnesBool].fillna(value= 0)
+    decp.loc[:, colonnesBool] = decp.loc[:, colonnesBool].map(lambda x: repBools[x])
+
+    
     return decp
 

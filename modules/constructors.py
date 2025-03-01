@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[13]:
+# In[1]:
 
 
 import pandas as pd
@@ -680,7 +680,7 @@ def addEnterprise(titulaire: pd.Series) -> pd.Series:
     return titulaire
 
 
-# In[15]:
+# In[7]:
 
 
 def addEnterpriseWithSiret(sirenId: str, typeId: str= 'SIRET', originalDS= ''):
@@ -1211,4 +1211,41 @@ def connectToCpv(contractNode: Contract, code: str):
                 contractNode.cpv.connect(cpvNode)
         except CypherSyntaxError:
             logger.trace('Requête Cypher incorrecte : {}', request)
+
+
+# In[13]:
+
+
+def addInvContract(contract: pd.Series):
+    """
+    """
+    # identification des titulaires
+    idsTitulaires = {'titulaire_id_1': 'titulaire_denominationSociale_1',
+                     'titulaire_id_2': 'titulaire_denominationSociale_2',
+                     'titulaire_id_3': 'titulaire_denominationSociale_3'}
+    id2type       = {'titulaire_id_1': 'titulaire_typeIdentifiant_1',
+                     'titulaire_id_2': 'titulaire_typeIdentifiant_2',
+                     'titulaire_id_3': 'titulaire_typeIdentifiant_3'}
+    idsBuyer = {'acheteur.id': 'acheteur.nom'}
+    
+    contract = checkEnterprises(contract, idsTitulaires, id2type)
+    if not contract[list(idsTitulaires.keys())].isna().all():
+        # identification de l'acheteur
+        contract = checkEnterprises(contract, idsBuyer)
+        if not contract[list(idsBuyer.keys())].isna().all():
+            return addContract(contract)
+        else:
+            # aucun acheteur identifiable, on ne crée pas les objets associés à cette ligne du dataset
+            logger.trace("Aucun acheteur identifiable : {}, ",
+                         list(contract[idsBuyer.keys()].values),
+                         list(contract[idsBuyer.values()].values)
+                        )
+            return None
+    else:
+        # aucune entreprise identifiable, on ne crée pas les objets associés à cette ligne du dataset
+        logger.trace("Aucune entreprise identifiable : {}",
+                     list(contract[idsTitulaires.keys()].values),
+                     list(contract[idsTitulaires.values()].values)
+                    )
+        return None
 
