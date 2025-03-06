@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[ ]:
+# In[1]:
 
 
 import pandas as pd
@@ -11,7 +11,7 @@ from pathlib import Path
 import glob
 
 
-# In[ ]:
+# In[2]:
 
 
 if '__file__' not in globals():
@@ -20,10 +20,10 @@ if '__file__' not in globals():
 from modules.config import *
 
 
-# In[ ]:
+# In[5]:
 
 
-def loadDecpV3(dataset: str = session['dataset']):
+def loadDecpV3(dataset):
     """
     Chargement du dataset et prétraitement des colonnes pour uniformisation entre les versions successives.
     Par défaut le dataset chargé est celui défini dans la variable session.
@@ -100,10 +100,10 @@ def mergeTypePrixV3(decp: pd.DataFrame):
     return decp
 
 
-# In[ ]:
+# In[6]:
 
 
-def loadDecpV4(dataset: str = session['dataset_v4']):
+def loadDecpV4(dataset):
     """
     Pour chargement des données conformes arrêté 2022
     Chargement du dataset et prétraitement des colonnes pour uniformisation entre les versions successives.
