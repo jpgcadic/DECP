@@ -66,12 +66,13 @@ from modules.requests import getCodeInVersion
 def addBuyer(siretBuyer: str, buyerName: str, buyerLegalName: str):
     """
     """
-    buyer = Buyer(modelVersion   = modelVersion,
-                  buyerId        = siretBuyer,
-                  buyerSiren     = siretBuyer[0:9],
-                  buyerSite      = siretBuyer[9:14],
-                  buyerName      = buyerName,
-                  buyerLegalName = buyerLegalName
+    buyer = Buyer(modelVersion      = modelVersion,
+                  buyerId           = siretBuyer,
+                  buyerSiren        = siretBuyer[0:9],
+                  buyerSite         = siretBuyer[9:14],
+                  buyerOriginalName = buyerName,
+                  buyerName         = buyerLegalName,
+                  buyerLegalName    = buyerLegalName
              ).save()
 
     # recherche et sinon création de l'entreprise correspondant à l'acheteur
@@ -1020,7 +1021,7 @@ def reconnectEnterprises(contract: pd.Series):
     return contract
 
 
-# In[11]:
+# In[16]:
 
 
 def updateBuyer(buyer):
@@ -1051,9 +1052,16 @@ def updateBuyer(buyer):
         # on ne conserve que la première ligne retournée, en conservant néanmoins le format dataframe.
         dfBuyer = dfBuyer.iloc[0, :]
         dfBuyer = dfBuyer.to_frame().transpose()
-        buyer.buyerLegalName = 'not populated in SIRENE' if dfBuyer.isna().denominationUniteLegale.all() \
-                                                         else str(*dfBuyer.denominationUniteLegale)
-
+        if buyer.buyerLegalName is None:
+            buyer.buyerOriginalName = buyer.buyerName
+            
+        if dfBuyer.isna().denominationUniteLegale.all():
+            buyer.buyerLegalName = 'not populated in SIRENE'
+            logger.trace("Dénomination légale de l'acheteur {} de SIRET {} absente de SIRENE", buyer.buyerName, buyer.buyerId)
+        else:
+            buyer.buyerLegalName = str(*dfBuyer.denominationUniteLegale)
+            buyer.buyerName = buyer.buyerLegalName
+            
         # on met à jour le numéro de SIRET identifiant l'acheteur, même si initialement identifié par n° SIREN
         buyer.buyerId = str(*dfBuyer.siret)
         buyer.Siren = str(*dfBuyer.siren)

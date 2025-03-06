@@ -21,7 +21,7 @@ from neomodel import One, OneOrMore, ZeroOrMore, ZeroOrOne
 # In[2]:
 
 
-modelVersion = '1.0.3'
+modelVersion = '1.0.4'
 
 class CommonRecordProperty:
     recordCreationDate = DateTimeFormatProperty(index= True, format="%Y-%m-%d %H:%M:%S")
@@ -91,16 +91,17 @@ class Enterprise(StructuredNode, CommonRecordProperty):
 
 
 class Buyer(StructuredNode, CommonRecordProperty):
-    buyerId         = StringProperty(unique_index=True, required=True)
-    buyerSiren      = StringProperty(unique_index=False, required=True)
-    buyerSite       = StringProperty(unique_index=False, required=True)
-    buyerName       = StringProperty(unique_index=False, required=False)
-    buyerLegalName  = StringProperty(unique_index=False, required=False)
-    buyerLegalData  = BooleanProperty()
+    buyerId           = StringProperty(unique_index=True, required=True)
+    buyerSiren        = StringProperty(unique_index=False, required=True)
+    buyerSite         = StringProperty(unique_index=False, required=True)
+    buyerName         = StringProperty(unique_index=False, required=False)
+    buyerOriginalName = StringProperty(unique_index=False, required=False)
+    buyerLegalName    = StringProperty(unique_index=False, required=False)
+    buyerLegalData    = BooleanProperty()
 
-    buyerLocation   = RelationshipTo('LocationNode', 'IS_LOCATED_IN', model= LocationRel)
-    managedContract = RelationshipTo('Contract', 'MANAGES_CONTRACT')
-    buyerEnterprise = RelationshipTo('Enterprise', 'IS_IN_ENTERPRISE')
+    buyerLocation     = RelationshipTo('LocationNode', 'IS_LOCATED_IN', model= LocationRel)
+    managedContract   = RelationshipTo('Contract', 'MANAGES_CONTRACT')
+    buyerEnterprise   = RelationshipTo('Enterprise', 'IS_IN_ENTERPRISE')
 
 
 class Contract(StructuredNode, CommonRecordProperty):
